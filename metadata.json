@@ -1,0 +1,6 @@
+{
+  "name": "CarbonSync",
+  "description": "Gamified carbon footprint tracking platform with automated IoT simulator integrations, social sharing, and personalized Gemini AI insights.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
