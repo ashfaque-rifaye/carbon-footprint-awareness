@@ -74,12 +74,22 @@ functions so it can be unit-tested and reused without duplication:
 
 - **Frontend:** React 19 + TypeScript + Vite, Tailwind CSS v4, Framer Motion.
 - **Backend:** Express server (`server.ts`) that owns the Gemini API key and
-  exposes a single `/api/insights` endpoint — the key is **never** shipped to the
-  browser.
+  exposes `/api/insights` (AI coaching) and `/api/health`. The route handler is
+  thin — prompt building, response parsing, input validation, and the fallback
+  all live in the testable [`src/lib/insights.ts`](src/lib/insights.ts) module.
+  The key is **never** shipped to the browser.
 - **Data:** Firebase Auth + Cloud Firestore, locked down by `firestore.rules`
   (default-deny, per-owner ownership checks, schema validation, immutable logs).
 - **AI:** `@google/genai` SDK calling `gemini-3.5-flash` with a structured JSON
-  response, plus a rule-based fallback.
+  response, validated and coerced before use, plus a rule-based fallback.
+
+### Efficiency
+
+- Vendor libraries (React, Firebase, Motion) are split into separate cacheable
+  chunks via `manualChunks`, keeping the main app bundle small (~265 kB vs.
+  ~870 kB unsplit) and improving repeat-load performance.
+- Recent activity logs sent to the model are capped (`MAX_RECENT_LOGS`) to bound
+  token usage, and the request body is size-limited server-side.
 
 ---
 
@@ -112,10 +122,15 @@ npm start       # serve the production build
 
 ## 5. Testing
 
-Carbon decision logic is covered by unit tests in
-[`src/lib/carbon.test.ts`](src/lib/carbon.test.ts) (run with `npm test`). The suite
-validates scoring, streak progression and resets, transit/smart-meter offsets,
-tree-equivalence framing, and edge cases (negative, zero, and non-finite inputs).
+Decision logic is covered by unit tests run with `npm test` (Vitest, 39 tests):
+
+- [`src/lib/carbon.test.ts`](src/lib/carbon.test.ts) — scoring, streak progression
+  and resets, transit/smart-meter offsets, tree-equivalence framing, and edge
+  cases (negative, zero, non-finite inputs).
+- [`src/lib/insights.test.ts`](src/lib/insights.test.ts) — request normalization
+  and input bounding, prompt construction, robust parsing of model output
+  (including code-fence stripping and malformed payloads), and the deterministic
+  fallback.
 
 ---
 
@@ -124,10 +139,12 @@ tree-equivalence framing, and edge cases (negative, zero, and non-finite inputs)
 - The Gemini API key is read server-side only from `.env.local`, which is excluded
   by `.gitignore` — no secret is committed or exposed to the client.
 - All AI calls are proxied through the Express `/api/insights` endpoint.
+- Incoming request bodies are size-limited (64 kb) and every field is validated
+  and bounded before being interpolated into the model prompt.
 - Firestore access is governed by least-privilege rules: default-deny, owner-only
   writes, schema validation, and immutable audit logs.
-- All external/model output is treated as untrusted and rendered as text/markdown,
-  never executed.
+- All external/model output is parsed defensively, validated, and rendered as
+  text/markdown, never executed.
 
 ---
 
