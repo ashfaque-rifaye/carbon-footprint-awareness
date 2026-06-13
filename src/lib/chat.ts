@@ -1,0 +1,165 @@
+/**
+ * Chat module — pure helpers for the conversational "Eco Assistant".
+ *
+ * The Express server delegates system-prompt construction, message validation,
+ * and deterministic fallbacks here so the assistant is testable in isolation and
+ * the route handler stays thin.
+ */
+
+export type ChatRole = "user" | "model";
+
+export interface ChatMessage {
+  role: ChatRole;
+  text: string;
+}
+
+export interface ChatContextProfile {
+  name?: string;
+  points?: number;
+  totalSavedKg?: number;
+  streakDays?: number;
+  smartMeterConnected?: boolean;
+  transportTrackerConnected?: boolean;
+}
+
+export interface ChatRequest {
+  messages?: unknown;
+  userProfile?: ChatContextProfile;
+}
+
+/** Maximum number of prior turns forwarded to the model (bounds token usage). */
+export const MAX_CHAT_HISTORY = 12;
+
+/** Maximum characters accepted for a single message. */
+export const MAX_MESSAGE_LEN = 1000;
+
+function safeText(value: unknown, fallback: string, maxLen: number): string {
+  if (typeof value !== "string") return fallback;
+  const trimmed = value.trim();
+  return trimmed ? trimmed.slice(0, maxLen) : fallback;
+}
+
+function safeNumber(value: unknown): number {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : 0;
+}
+
+/**
+ * Validate and bound an incoming chat history. Drops malformed entries, coerces
+ * roles, trims long messages, and keeps only the most recent turns.
+ */
+export function normalizeChatMessages(value: unknown): ChatMessage[] {
+  if (!Array.isArray(value)) return [];
+  const cleaned: ChatMessage[] = [];
+  for (const entry of value) {
+    if (!entry || typeof entry !== "object") continue;
+    const e = entry as Record<string, unknown>;
+    const text = safeText(e.text, "", MAX_MESSAGE_LEN);
+    if (!text) continue;
+    const role: ChatRole = e.role === "model" ? "model" : "user";
+    cleaned.push({ role, text });
+  }
+  return cleaned.slice(-MAX_CHAT_HISTORY);
+}
+
+/** Normalize the user profile context used to ground the assistant's answers. */
+export function normalizeChatProfile(profile?: ChatContextProfile): Required<ChatContextProfile> {
+  const p = profile ?? {};
+  return {
+    name: safeText(p.name, "there", 60),
+    points: safeNumber(p.points),
+    totalSavedKg: safeNumber(p.totalSavedKg),
+    streakDays: safeNumber(p.streakDays),
+    smartMeterConnected: Boolean(p.smartMeterConnected),
+    transportTrackerConnected: Boolean(p.transportTrackerConnected),
+  };
+}
+
+/**
+ * Build the system instruction that defines the assistant's persona, scope, and
+ * grounding context. Keeping it focused on sustainability prevents the assistant
+ * from drifting off-topic.
+ */
+export function buildChatSystemPrompt(profile: Required<ChatContextProfile>): string {
+  return `
+You are "Eco Assistant", a friendly, knowledgeable carbon-footprint coach inside the CarbonSync app.
+
+Your job:
+- Help the user understand, track, and reduce their personal carbon footprint.
+- Give specific, practical, encouraging advice grounded in everyday actions (energy, transport, diet, waste).
+- When useful, give rough CO2 estimates (e.g. "a 10 km car trip emits ~2.2 kg CO2") and clearly label them as approximate.
+- Keep answers concise: 2-4 short paragraphs or a tight bullet list. Use plain language.
+- Stay on the topic of sustainability and carbon reduction. If asked something unrelated, gently steer back.
+- Never invent the user's personal data; only use the context provided below.
+
+User context (may be partial):
+- Name: ${profile.name}
+- Eco points: ${profile.points}
+- Total CO2 saved: ${profile.totalSavedKg} kg
+- Active streak: ${profile.streakDays} days
+- Smart meter connected: ${profile.smartMeterConnected ? "yes" : "no"}
+- Transport tracker connected: ${profile.transportTrackerConnected ? "yes" : "no"}
+
+Respond in clear Markdown.
+`.trim();
+}
+
+/**
+ * Map normalized chat history into the @google/genai "contents" format
+ * (role + parts). Model messages map to the "model" role; everything else to
+ * "user".
+ */
+export function toGeminiContents(messages: ChatMessage[]): Array<{ role: ChatRole; parts: Array<{ text: string }> }> {
+  return messages.map((m) => ({
+    role: m.role,
+    parts: [{ text: m.text }],
+  }));
+}
+
+/** Lower-cased keyword buckets for the offline rule-based fallback. */
+const FALLBACK_RULES: Array<{ keywords: string[]; reply: string }> = [
+  {
+    keywords: ["car", "drive", "commute", "fuel", "petrol", "gas", "travel", "flight", "fly"],
+    reply:
+      "Transport is often the biggest personal source of emissions. A petrol car emits roughly **0.22 kg CO₂ per km**, so swapping short trips for walking, cycling, or public transit adds up fast. For longer journeys, trains beat flights by a wide margin. Try logging a low-carbon trip in the **Transport Tracker** to see your savings.",
+  },
+  {
+    keywords: ["energy", "electricity", "power", "solar", "heating", "appliance", "home"],
+    reply:
+      "Home energy is a great place to cut carbon. Shift heavy appliance use (laundry, dishwasher) to daylight hours when the grid is cleaner, unplug standby 'vampire' loads, and lower heating by a degree or two. If you have the **Smart Utility Meter** connected, it logs solar offsets automatically.",
+  },
+  {
+    keywords: ["food", "diet", "meat", "beef", "vegan", "vegetarian", "eat"],
+    reply:
+      "Diet is a quietly powerful lever. Red meat is the most carbon-intensive food, so even one or two plant-based days a week makes a real dent — a 'Meatless Monday' can save around **3.5 kg CO₂ per week**. Buying local and seasonal, and cutting food waste, help too.",
+  },
+  {
+    keywords: ["waste", "recycle", "plastic", "compost", "trash"],
+    reply:
+      "Reducing waste keeps carbon out of landfills. Composting food scraps, recycling properly, and choosing reusable over single-use items all help. Planning meals to avoid throwing away food is one of the highest-impact habits.",
+  },
+];
+
+/**
+ * Deterministic, rule-based reply used when the AI key is missing or the model
+ * call fails. Picks the most relevant tip based on simple keyword matching so the
+ * assistant still gives useful, on-topic guidance.
+ */
+export function fallbackChatReply(messages: ChatMessage[]): string {
+  const lastUser = [...messages].reverse().find((m) => m.role === "user");
+  const text = (lastUser?.text || "").toLowerCase();
+
+  for (const rule of FALLBACK_RULES) {
+    if (rule.keywords.some((k) => text.includes(k))) {
+      return rule.reply;
+    }
+  }
+
+  return [
+    "Here are a few high-impact ways to shrink your carbon footprint:",
+    "- **Transport:** walk, cycle, or take transit for short trips; favour trains over flights.",
+    "- **Energy:** run appliances in daylight, unplug standby loads, and dial heating down a notch.",
+    "- **Diet:** add a couple of plant-based days each week and cut food waste.",
+    "",
+    "Ask me about any of these and I'll go deeper. (AI service is offline right now, so this is a built-in tip.)",
+  ].join("\n");
+}

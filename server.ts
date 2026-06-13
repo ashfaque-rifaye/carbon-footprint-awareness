@@ -9,7 +9,17 @@ import {
   parseInsightsResponse,
   fallbackInsights,
 } from "./src/lib/insights";
+import {
+  normalizeChatMessages,
+  normalizeChatProfile,
+  buildChatSystemPrompt,
+  toGeminiContents,
+  fallbackChatReply,
+} from "./src/lib/chat";
 
+// Load environment variables. `.env.local` (gitignored, holds secrets) takes
+// precedence over a committed `.env`, mirroring Vite/Next conventions.
+dotenv.config({ path: ".env.local" });
 dotenv.config();
 
 // Initialize the standard @google/genai SDK with server key and user-agent header.
@@ -70,6 +80,40 @@ async function startServer() {
     } catch (genError) {
       console.error("Gemini generation error:", genError);
       res.json(fallbackInsights(ctx.userProfile));
+    }
+  });
+
+  // API endpoint: Conversational Eco Assistant (multi-turn chat).
+  app.post("/api/chat", async (req, res) => {
+    const messages = normalizeChatMessages(req.body?.messages);
+    const profile = normalizeChatProfile(req.body?.userProfile);
+
+    if (messages.length === 0) {
+      return res.status(400).json({ error: "At least one message is required." });
+    }
+
+    // No API key configured: serve the deterministic rule-based assistant.
+    if (!ai) {
+      return res.json({ reply: fallbackChatReply(messages), source: "fallback" });
+    }
+
+    try {
+      const response = await ai.models.generateContent({
+        model: GEMINI_MODEL,
+        contents: toGeminiContents(messages),
+        config: {
+          systemInstruction: buildChatSystemPrompt(profile),
+        },
+      });
+
+      const reply = (response.text || "").trim();
+      if (!reply) {
+        return res.json({ reply: fallbackChatReply(messages), source: "fallback" });
+      }
+      res.json({ reply, source: "ai" });
+    } catch (chatError) {
+      console.error("Gemini chat error:", chatError);
+      res.json({ reply: fallbackChatReply(messages), source: "fallback" });
     }
   });
 

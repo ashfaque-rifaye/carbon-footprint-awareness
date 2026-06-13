@@ -67,17 +67,33 @@ functions so it can be unit-tested and reused without duplication:
   to Cloud Firestore.
 - **Smart AI Coach** — Calls the Gemini-backed `/api/insights` endpoint to generate
   personalized insights and claimable actions from the user's live context.
+- **Eco Assistant (conversational AI)** — A multi-turn chat coach backed by the
+  Gemini `/api/chat` endpoint. It is grounded in the user's profile (streak,
+  savings, connected devices) and also available as a no-sign-up live demo on the
+  landing page.
 - **Standings & Badges** — A real-time community leaderboard, achievement
   milestones, and social sharing to drive friendly competition.
+
+### Where AI is used
+
+| Surface | Endpoint | What Gemini does |
+| --- | --- | --- |
+| Smart AI Coach | `POST /api/insights` | Generates a personalized Markdown report + 3 claimable challenge actions as structured JSON |
+| Eco Assistant | `POST /api/chat` | Multi-turn conversational coaching grounded in the user's stats, with rough CO₂ estimates |
+
+Both endpoints validate and bound untrusted input, parse model output defensively,
+and degrade to deterministic rule-based responses if the API key is missing or a
+call fails — so the experience never breaks.
 
 ### Architecture
 
 - **Frontend:** React 19 + TypeScript + Vite, Tailwind CSS v4, Framer Motion.
 - **Backend:** Express server (`server.ts`) that owns the Gemini API key and
-  exposes `/api/insights` (AI coaching) and `/api/health`. The route handler is
-  thin — prompt building, response parsing, input validation, and the fallback
-  all live in the testable [`src/lib/insights.ts`](src/lib/insights.ts) module.
-  The key is **never** shipped to the browser.
+  exposes `/api/insights` (AI coaching), `/api/chat` (conversational assistant),
+  and `/api/health`. The route handlers are thin — prompt building, response
+  parsing, input validation, and fallbacks live in the testable
+  [`src/lib/insights.ts`](src/lib/insights.ts) and [`src/lib/chat.ts`](src/lib/chat.ts)
+  modules. The key is **never** shipped to the browser.
 - **Data:** Firebase Auth + Cloud Firestore, locked down by `firestore.rules`
   (default-deny, per-owner ownership checks, schema validation, immutable logs).
 - **AI:** `@google/genai` SDK calling `gemini-3.5-flash` with a structured JSON
@@ -122,7 +138,7 @@ npm start       # serve the production build
 
 ## 5. Testing
 
-Decision logic is covered by unit tests run with `npm test` (Vitest, 39 tests):
+Decision logic is covered by unit tests run with `npm test` (Vitest, 53 tests):
 
 - [`src/lib/carbon.test.ts`](src/lib/carbon.test.ts) — scoring, streak progression
   and resets, transit/smart-meter offsets, tree-equivalence framing, and edge
@@ -131,6 +147,9 @@ Decision logic is covered by unit tests run with `npm test` (Vitest, 39 tests):
   and input bounding, prompt construction, robust parsing of model output
   (including code-fence stripping and malformed payloads), and the deterministic
   fallback.
+- [`src/lib/chat.test.ts`](src/lib/chat.test.ts) — chat history validation and
+  bounding, system-prompt grounding, Gemini content mapping, and keyword-based
+  fallback replies.
 
 ---
 
