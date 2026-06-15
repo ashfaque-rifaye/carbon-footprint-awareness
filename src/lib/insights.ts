@@ -6,6 +6,9 @@
  * isolation and the route handler stays thin.
  */
 
+import { summarizeByCategory, buildFocusSummary, rankActionsByImpactEffort } from "./footprint";
+import type { EmissionsLog } from "../types";
+
 export type ActionCost = "Free" | "Low" | "Medium";
 
 export interface SuggestedAction {
@@ -95,6 +98,10 @@ export function normalizeInsightsRequest(body: unknown): Required<InsightsReques
 export function buildInsightsPrompt(ctx: Required<InsightsRequest>): string {
   const { userProfile: p, recentLogs, simulatedSensors: s } = ctx;
 
+  // Derive the user's biggest emission-savings driver and untapped categories so
+  // the model targets the real top contributor instead of giving generic tips.
+  const focus = buildFocusSummary(summarizeByCategory(recentLogs as EmissionsLog[]));
+
   // One-shot example: anchors the exact output schema, tone, and value ranges so
   // the model reproduces structure consistently (few-shot prompting).
   const example = {
@@ -112,10 +119,10 @@ export function buildInsightsPrompt(ctx: Required<InsightsRequest>): string {
 You are the AI Carbon Reduction Coach inside "CarbonSync", a gamified app that helps individuals understand, track, and reduce their personal carbon footprint. You are given a single user's live profile, their recent eco-action log, and readings from their simulated smart-home and transport devices. Emission facts you may rely on: a petrol car emits ~0.22 kg CO2/km; red meat is the most carbon-intensive common food; shifting grid load to peak-solar hours reduces emissions.
 
 # OBJECTIVE
-Produce a personalized performance review plus exactly three concrete, claimable carbon-reduction actions that are realistic for THIS user given their connected devices and recent activity. Tailor every suggestion to the data below — never give generic advice that ignores their context.
+Identify the user's biggest emission-savings driver and the most relevant untapped areas, then produce a short performance review plus exactly three concrete, claimable next actions — RANKED so the first action is the single best next step (highest CO2 impact for the lowest effort). Tailor every suggestion to the data below — never give generic advice that ignores their context.
 
 # STYLE
-Crisp, concrete, and data-aware. Reference the user's real numbers (streak, kg saved, devices). Each tip must name a specific behavior and an approximate CO2 saving. No vague platitudes.
+Crisp, concrete, and data-aware. Reference the user's real numbers (streak, kg saved, top category, devices). Each tip must name a specific behavior and an approximate CO2 saving. No vague platitudes like "use public transport" — say which trips, how often, and the saving.
 
 # TONE
 Upbeat, encouraging, and lightly gamified — like a supportive coach celebrating progress and nudging the next win.
@@ -124,7 +131,10 @@ Upbeat, encouraging, and lightly gamified — like a supportive coach celebratin
 A motivated individual (not a scientist) who wants practical, everyday steps and a bit of friendly competition.
 
 # REASONING (do this silently, internally — DO NOT include it in the output)
-Think step by step before writing: (1) gauge the user's progress level from points/streak/savings; (2) note which devices are connected and what recent categories they logged; (3) identify the highest-impact gaps; (4) derive three actions that fit their setup with sensible CO2 estimates; (5) only then compose the final JSON.
+Think step by step before writing: (1) read the FOOTPRINT ANALYSIS to find the top driver and untapped categories; (2) gauge the user's progress level from points/streak/savings; (3) note which devices are connected and recent logged categories; (4) for each candidate action estimate CO2 saved and effort (Free<Low<Medium), then rank by impact-per-effort; (5) put the single best next step first; (6) only then compose the final JSON.
+
+# FOOTPRINT ANALYSIS (precomputed from the user's log — treat as ground truth)
+${focus}
 
 # USER DATA
 Profile:
@@ -145,12 +155,12 @@ Simulated device feed:
 # RESPONSE FORMAT (STRICT)
 Return ONE raw JSON object and NOTHING else — no markdown code fences, no prose before or after. It MUST match this schema exactly:
 {
-  "insights": string,   // Markdown; 1 short intro line + a 3-bullet list of tailored hacks
-  "actions": [          // EXACTLY 3 items
+  "insights": string,   // Markdown; 1 short intro line naming the top driver + a 3-bullet list of tailored hacks
+  "actions": [          // EXACTLY 3 items, ORDERED best-next-step first
     { "id": string, "text": string, "savedKg": number, "cost": "Free" | "Low" | "Medium" }
   ]
 }
-Rules: "savedKg" is a positive number (kg CO2). "cost" is exactly one of "Free", "Low", or "Medium". "id" is a short lowercase snake_case slug.
+Rules: "savedKg" is a positive number (kg CO2). "cost" is exactly one of "Free", "Low", or "Medium". "id" is a short lowercase snake_case slug. Order "actions" by impact-per-effort, best first.
 
 # EXAMPLE (for a different user named Alex — match this structure, not its content)
 ${JSON.stringify(example)}
@@ -178,7 +188,9 @@ function coerceAction(value: unknown, index: number): SuggestedAction | null {
 /**
  * Safely parse the model's raw text into a validated InsightsResult. Strips any
  * accidental markdown code fences and rejects malformed payloads (returns null
- * so the caller can fall back gracefully).
+ * so the caller can fall back gracefully). Returned actions are re-ranked by
+ * impact-per-effort so the "next best action" is always first, regardless of the
+ * order the model emitted.
  */
 export function parseInsightsResponse(text: string | undefined | null): InsightsResult | null {
   if (!text) return null;
@@ -196,9 +208,14 @@ export function parseInsightsResponse(text: string | undefined | null): Insights
   if (!insights) return null;
 
   const rawActions = Array.isArray(obj.actions) ? obj.actions : [];
-  const actions = rawActions
+  const validated = rawActions
     .map((a, i) => coerceAction(a, i))
     .filter((a): a is SuggestedAction => a !== null);
+
+  // Re-rank by impact-per-effort; strip the helper score before returning.
+  const actions: SuggestedAction[] = rankActionsByImpactEffort(validated).map(
+    ({ impactEffortScore, ...action }) => action
+  );
 
   return { insights, actions };
 }

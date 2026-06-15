@@ -1,220 +1,181 @@
-# 🌱 CarbonSync — AI-Powered Carbon Footprint Awareness Assistant
+# 🌱 CarbonSync — Your Personal Carbon Coach
 
-CarbonSync is a gamified, real-time carbon footprint tracking platform that helps
-everyday "green citizens" understand, log, and reduce their personal emissions.
-It pairs simulated IoT telemetry (a smart utility meter and a multi-modal transport
-tracker) with a **Gemini-powered AI Carbon Coach** that turns each user's activity
-into tailored, actionable advice.
+**A personalized carbon coach that finds the biggest emission drivers in a person's
+life and gives the next best action, ranked by impact and effort.**
 
-> Built for **PromptWars — Challenge 3** around the **Sustainability / Carbon
-> Footprint Awareness** vertical.
+> PromptWars Challenge 3 · Vertical: **Sustainability / Carbon Footprint Awareness**
 
 ---
 
-## 1. Chosen Vertical & Persona
+## 1. Problem
 
-**Vertical:** Sustainability — Carbon Footprint Awareness.
+Most carbon tools are static calculators: they spit out a number, make people feel
+guilty, and get abandoned. Individuals don't know *which* of their habits matters
+most or *what to do next*. The challenge: help people **understand, track, and
+reduce** their personal carbon footprint through simple actions and personalized
+insights.
 
-**Persona:** *Maya, an environmentally-conscious city dweller.* She wants to lower
-her footprint but finds most carbon calculators static, guilt-driven, and easy to
-abandon. She needs something that (a) makes progress visible, (b) rewards
-consistency, and (c) gives concrete next steps based on her actual lifestyle.
+## 2. Solution Summary
 
-CarbonSync is designed around her: it is encouraging rather than punishing,
-gamified to build daily habits, and context-aware so the guidance fits what she
-actually does.
+CarbonSync logs a user's everyday carbon-saving actions (transport, energy, diet,
+waste), scores their footprint progress, and uses a **Gemini-powered coach** to:
 
----
+1. pinpoint the user's **biggest emission driver** from their own activity,
+2. recommend the **next best actions, ranked by impact-per-effort**, and
+3. answer follow-up questions through a grounded **conversational assistant**.
 
-## 2. Approach & Logic
+A behavior-change loop (points, streaks, milestones, leaderboard) keeps people
+coming back.
 
-The assistant makes decisions from three context signals and feeds them to Gemini:
+## 3. Why This Beats a Generic "Eco Assistant"
 
-1. **User profile** — points, total CO₂ saved, daily streak, and which simulated
-   devices are connected.
-2. **Recent activity ledger** — the last few logged carbon-saving actions
-   (category, kilograms saved, source).
-3. **Live simulated telemetry** — smart-meter solar offset and transport-tracker
-   low-carbon distance.
+A generic assistant says *"use public transport."* CarbonSync says:
 
-These are combined into a structured prompt. Gemini returns a JSON payload with
-(a) a personalized Markdown coaching narrative and (b) three concrete, claimable
-challenge actions sized to the user's situation. If the model or API key is
-unavailable, a deterministic rule-based engine produces equivalent guidance so the
-experience never breaks.
+> *"Transport is ~90% of your savings so far. Food is your biggest untapped area —
+> swapping beef for a plant-based dinner twice this week saves ~5.2 kg CO₂, more
+> than any single energy tweak right now."*
 
-### Core decision logic (pure & testable)
+The difference is **context-aware ranking**. We don't ask the model to guess: a
+deterministic analytics layer computes the real category breakdown and the
+top driver, hands it to the model as ground truth, and re-ranks the returned
+actions by **kg CO₂ saved ÷ effort** so the *single best next step* is always
+first. That is a real assistant, not a template.
 
-All carbon math lives in [`src/lib/carbon.ts`](src/lib/carbon.ts) as pure
-functions so it can be unit-tested and reused without duplication:
+## 4. Architecture (one paragraph)
 
-| Concern | Function | Rule |
+A **React + TypeScript frontend** (input, dashboard, recommendations) talks to a
+thin **Express backend** that owns the Gemini key. A pure **rules + analytics
+engine** (`src/lib/carbon.ts`, `src/lib/footprint.ts`) does all emissions scoring,
+category breakdown, and impact/effort ranking. An **LLM layer**
+(`src/lib/insights.ts`, `src/lib/chat.ts`) handles explanation, personalization,
+and next-step guidance. **Firebase Auth + Firestore** store the user profile and
+activity history. If the AI is unavailable, deterministic fallbacks keep every
+feature working.
+
+```
+Frontend (React)
+   │  user actions + profile
+   ▼
+Express API  ──►  Rules + Analytics engine   (scoring, top-driver, ranking)
+   │              carbon.ts · footprint.ts
+   ▼
+LLM layer (Gemini)  ──►  insights.ts (JSON coach) · chat.ts (assistant)
+   │  validated + re-ranked output
+   ▼
+Firestore (profile + activity history)
+```
+
+## 5. Logic Flow
+
+1. User logs an action (challenge, custom offset, or simulated device event).
+2. `carbon.ts` computes points, streak, and CO₂ saved; the entry is written to the
+   Firestore activity ledger.
+3. `footprint.ts` aggregates the ledger into a **category breakdown** and finds the
+   **top emission driver** plus untapped categories.
+4. `insights.ts` builds a CO-STAR prompt that includes that precomputed analysis;
+   Gemini returns a review + 3 candidate actions as strict JSON.
+5. The server **re-ranks** the actions by impact-per-effort and returns them, so
+   the UI's first suggestion is the highest-leverage next step.
+6. The user can ask follow-ups in the **conversational assistant** (`chat.ts`),
+   grounded in their live stats.
+
+### Core decision logic (pure & unit-tested)
+
+| Concern | Module · function | Rule |
 | --- | --- | --- |
-| Scoring | `calculatePoints` | 25 base points + 10 per kg CO₂ saved |
-| Streaks | `nextStreak` / `resolveStreakOnLogin` | +1 for consecutive days, reset after a gap |
-| Transport offset | `calculateTransitSavings` | distance × mode factor vs. a petrol baseline (~0.22 kg/km) |
-| Smart meter | `smartMeterOffset` | rewards solar yield that exceeds household load |
-| Impact framing | `treesEquivalent` | converts kg CO₂ into mature-tree absorption |
+| Scoring | `carbon.calculatePoints` | 25 base + 10 per kg CO₂ |
+| Streaks | `carbon.nextStreak` | +1 consecutive day, reset after a gap |
+| Transport offset | `carbon.calculateTransitSavings` | distance × mode factor vs. ~0.22 kg/km petrol baseline |
+| Top driver | `footprint.summarizeByCategory` | aggregates ledger, ranks categories by CO₂ |
+| Next best action | `footprint.rankActionsByImpactEffort` | kg saved ÷ effort weight (Free<Low<Medium) |
 
----
+## 6. Prompt Strategy
 
-## 3. How the Solution Works
+Prompts are engineered, not ad-hoc (`src/lib/insights.ts`, `src/lib/chat.ts`):
 
-- **Eco Tracker** — Connect the simulated Smart Utility Meter (auto-logs passive
-  solar offsets) and Transport Tracker (simulates low-carbon journeys), then claim
-  daily challenges or log custom offsets.
-- **Carbon Ledger** — An immutable, real-time audit trail of every saving, synced
-  to Cloud Firestore.
-- **Smart AI Coach** — Calls the Gemini-backed `/api/insights` endpoint to generate
-  personalized insights and claimable actions from the user's live context.
-- **Eco Assistant (conversational AI)** — A multi-turn chat coach backed by the
-  Gemini `/api/chat` endpoint. It is grounded in the user's profile (streak,
-  savings, connected devices) and also available as a no-sign-up live demo on the
-  landing page.
-- **Standings & Badges** — A real-time community leaderboard, achievement
-  milestones, and social sharing to drive friendly competition.
+- **CO-STAR** — every prompt has explicit Context, Objective, Style, Tone,
+  Audience, and Response-format sections.
+- **Grounded analysis** — the precomputed top-driver/untapped-category summary is
+  injected as "ground truth" so advice targets the user's real footprint.
+- **Few-shot** — the insights prompt embeds a one-shot JSON exemplar; the chat
+  prompt embeds two Q&A exemplars to lock structure and tone.
+- **Chain-of-Thought** — the model reasons step-by-step *internally* (read
+  analysis → rank by impact/effort → best step first); for the JSON endpoint the
+  reasoning is kept **out** of the output to preserve strict format.
+- **Strict format + validation** — the insights endpoint must return one raw JSON
+  object (exactly 3 actions, enumerated `cost`); the server validates, coerces,
+  and re-ranks before the UI sees it.
+- **Anti-hallucination** — only validated user stats are passed; the model is told
+  never to invent personal data. Verified live: with the transport tracker off,
+  the coach recommended *manual* logging instead of a fake auto-feed.
 
-### Where AI is used
+## 7. Assumptions
 
-| Surface | Endpoint | What Gemini does |
-| --- | --- | --- |
-| Smart AI Coach | `POST /api/insights` | Generates a personalized Markdown report + 3 claimable challenge actions as structured JSON |
-| Eco Assistant | `POST /api/chat` | Multi-turn conversational coaching grounded in the user's stats, with rough CO₂ estimates |
+- IoT devices are **simulated** — no hardware needed. Emission factors
+  (~0.22 kg CO₂/km petrol; ~22 kg CO₂/tree/yr) are representative, not certified.
+- The leaderboard seeds with sample competitors until real users sync.
+- Credential sync is a popup-blocker-resilient fallback to Google sign-in.
 
-Both endpoints validate and bound untrusted input, parse model output defensively,
-and degrade to deterministic rule-based responses if the API key is missing or a
-call fails — so the experience never breaks.
+## 8. Testing
 
-### Prompt engineering strategy
+`npm test` runs **72 unit tests** (Vitest) over the decision logic:
 
-Both prompts are deliberately engineered rather than ad-hoc, which is what keeps
-the assistant accurate, consistently formatted, and free of hallucinated user
-data. See [`src/lib/insights.ts`](src/lib/insights.ts) and
-[`src/lib/chat.ts`](src/lib/chat.ts).
+- `carbon.test.ts` — scoring, streaks, offsets, equivalence, edge cases.
+- `footprint.test.ts` — category aggregation, top-driver detection, impact/effort
+  ranking, focus-summary text.
+- `insights.test.ts` — input bounding, CO-STAR/few-shot/CoT prompt structure,
+  footprint injection, defensive JSON parsing, **action re-ranking**, fallback.
+- `chat.test.ts` — history validation, prompt grounding, content mapping,
+  keyword fallback.
 
-- **CO-STAR framework** — every prompt is structured into explicit
-  **C**ontext, **O**bjective, **S**tyle, **T**one, **A**udience, and
-  **R**esponse-format sections, so the model always knows the situation, the goal,
-  the voice, the reader, and the exact output shape.
-- **Few-shot examples** — the insights prompt embeds a one-shot example of the
-  exact JSON schema; the chat system prompt embeds two Q&A examples. This locks in
-  structure and tone.
-- **Chain-of-Thought (CoT)** — both prompts instruct the model to reason
-  step-by-step *internally* (gauge progress → check devices/logs → find gaps →
-  derive actions). For the JSON endpoint the reasoning is explicitly kept **out**
-  of the output to preserve strict format compliance.
-- **Strict output format** — the insights endpoint demands a single raw JSON
-  object (no code fences, exactly 3 actions, enumerated `cost` values), and the
-  response is then validated/coerced in code before it reaches the UI.
-- **Anti-hallucination grounding** — prompts pass only the user's real, validated
-  stats and instruct the model to never invent personal data and to say so when a
-  value is missing. Verified live: with the transport tracker off, the coach
-  suggested *manual* logging instead of claiming an automatic feed.
-
-### Architecture
-
-- **Frontend:** React 19 + TypeScript + Vite, Tailwind CSS v4, Framer Motion.
-- **Backend:** Express server (`server.ts`) that owns the Gemini API key and
-  exposes `/api/insights` (AI coaching), `/api/chat` (conversational assistant),
-  and `/api/health`. The route handlers are thin — prompt building, response
-  parsing, input validation, and fallbacks live in the testable
-  [`src/lib/insights.ts`](src/lib/insights.ts) and [`src/lib/chat.ts`](src/lib/chat.ts)
-  modules. The key is **never** shipped to the browser.
-- **Data:** Firebase Auth + Cloud Firestore, locked down by `firestore.rules`
-  (default-deny, per-owner ownership checks, schema validation, immutable logs).
-- **AI:** `@google/genai` SDK calling `gemini-3.5-flash` with a structured JSON
-  response, validated and coerced before use, plus a rule-based fallback.
-
-### Efficiency
-
-- Vendor libraries (React, Firebase, Motion) are split into separate cacheable
-  chunks via `manualChunks`, keeping the main app bundle small (~265 kB vs.
-  ~870 kB unsplit) and improving repeat-load performance.
-- Recent activity logs sent to the model are capped (`MAX_RECENT_LOGS`) to bound
-  token usage, and the request body is size-limited server-side.
-
----
-
-## 4. Running Locally
+## 9. How to Run
 
 **Prerequisites:** Node.js 18+.
 
 ```bash
-# 1. Install dependencies
-npm install
-
-# 2. Add your Gemini API key to .env.local (this file is gitignored)
-#    GEMINI_API_KEY="your-key-here"
-cp .env.example .env.local   # then edit it
-
-# 3. Start the full-stack dev server (Express + Vite) on http://localhost:3000
-npm run dev
+npm install                       # install deps
+cp .env.example .env.local        # then set GEMINI_API_KEY in .env.local (gitignored)
+npm run dev                       # full-stack dev server on http://localhost:3000
 ```
-
-Other scripts:
 
 ```bash
-npm test        # run the unit test suite (Vitest)
-npm run lint    # type-check with tsc --noEmit
-npm run build   # production build (client bundle + server.cjs)
-npm start       # serve the production build
+npm test       # unit tests (Vitest)
+npm run lint   # type-check (tsc --noEmit)
+npm run build  # production build (client bundle + server.cjs)
+npm start      # serve the production build
 ```
 
----
+Sample API call:
 
-## 5. Testing
+```bash
+curl -s localhost:3000/api/insights -H "Content-Type: application/json" -d '{
+  "userProfile":{"name":"Maya","streakDays":4,"smartMeterConnected":true},
+  "recentLogs":[{"category":"transport","kgSaved":4.4,"activityName":"Cycled commute"}]
+}'
+# → { "insights": "### ... Transport is your top driver ...",
+#     "actions": [ { "id":"meatless_dinner","text":"...","savedKg":5.2,"cost":"Low" }, ... ] }
+```
 
-Decision logic is covered by unit tests run with `npm test` (Vitest, 58 tests):
+## 10. Security & Accessibility (built in)
 
-- [`src/lib/carbon.test.ts`](src/lib/carbon.test.ts) — scoring, streak progression
-  and resets, transit/smart-meter offsets, tree-equivalence framing, and edge
-  cases (negative, zero, non-finite inputs).
-- [`src/lib/insights.test.ts`](src/lib/insights.test.ts) — request normalization
-  and input bounding, prompt construction, robust parsing of model output
-  (including code-fence stripping and malformed payloads), and the deterministic
-  fallback.
-- [`src/lib/chat.test.ts`](src/lib/chat.test.ts) — chat history validation and
-  bounding, system-prompt grounding, CO-STAR/CoT/few-shot prompt structure,
-  Gemini content mapping, and keyword-based fallback replies.
+- **Security:** Gemini key is server-side only (gitignored `.env.local`); request
+  bodies are size-limited and every field validated before prompting; Firestore
+  uses default-deny, owner-only, schema-validated, immutable-log rules; model
+  output is parsed defensively and never executed.
+- **Accessibility:** skip link, semantic landmarks, `aria-label`s on icon buttons,
+  `role="tab"`/`aria-selected` navigation, `aria-live` status regions, labeled
+  inputs. (Full WCAG sign-off needs manual assistive-tech testing.)
 
----
+## 11. Future Improvements
 
-## 6. Security
-
-- The Gemini API key is read server-side only from `.env.local`, which is excluded
-  by `.gitignore` — no secret is committed or exposed to the client.
-- All AI calls are proxied through the Express `/api/insights` endpoint.
-- Incoming request bodies are size-limited (64 kb) and every field is validated
-  and bounded before being interpolated into the model prompt.
-- Firestore access is governed by least-privilege rules: default-deny, owner-only
-  writes, schema validation, and immutable audit logs.
-- All external/model output is parsed defensively, validated, and rendered as
-  text/markdown, never executed.
+- Persist AI recommendations and track "action taken → CO₂ saved" over time.
+- Location- and budget-aware factors (regional grid mix, local transit options).
+- Weekly goal engine that adapts targets from trend detection.
 
 ---
 
-## 7. Accessibility
+### Efficiency notes
 
-- A "Skip to main content" link and semantic landmarks (`<header>`, `<main>`,
-  `<footer>`).
-- Icon-only controls expose descriptive `aria-label`s; decorative icons are marked
-  `aria-hidden`.
-- Tab navigation uses `role="tablist"` / `role="tab"` with `aria-selected`.
-- Status banners use `aria-live` so updates are announced to screen readers.
-- Form inputs have associated labels.
-
-> Note: Full WCAG conformance requires manual testing with assistive technologies
-> and expert review; the above covers the primary programmatic criteria.
-
----
-
-## 8. Assumptions
-
-- IoT devices are **simulated** — no physical hardware is required. Telemetry uses
-  representative emission factors (e.g., ~0.22 kg CO₂/km petrol baseline) for
-  illustration, not certified accounting.
-- Emission factors are approximate and chosen for clarity and engagement.
-- "Trees equivalent" uses ~22 kg CO₂ absorbed per mature tree per year.
-- The community leaderboard seeds with sample competitors until real users sync.
-- Anonymous/credential sync is provided as a popup-blocker-resilient fallback to
-  Google federated sign-in.
+Vendor libraries are split into cacheable chunks (`manualChunks`), keeping the main
+bundle ~265 kB. Logs sent to the model are capped (`MAX_RECENT_LOGS`); analytics
+run as O(n) passes over the activity log.

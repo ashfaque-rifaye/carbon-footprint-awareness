@@ -81,6 +81,24 @@ describe("buildInsightsPrompt", () => {
     expect(prompt).toContain("# EXAMPLE");
     expect(prompt).toContain("solar_laundry");
   });
+
+  it("injects a precomputed footprint analysis of the top driver", () => {
+    const prompt = buildInsightsPrompt(
+      normalizeInsightsRequest({
+        recentLogs: [
+          { logId: "1", userId: "u", category: "transport", kgSaved: 9, activityName: "drive swap", timestamp: "t", source: "manual" },
+          { logId: "2", userId: "u", category: "diet", kgSaved: 1, activityName: "veg", timestamp: "t", source: "manual" },
+        ],
+      })
+    );
+    expect(prompt).toContain("# FOOTPRINT ANALYSIS");
+    expect(prompt).toContain("Transport");
+  });
+
+  it("instructs the model to rank actions by impact per effort", () => {
+    const prompt = buildInsightsPrompt(normalizeInsightsRequest({}));
+    expect(prompt.toLowerCase()).toContain("impact-per-effort");
+  });
 });
 
 describe("parseInsightsResponse", () => {
@@ -124,6 +142,20 @@ describe("parseInsightsResponse", () => {
   it("returns null for empty input", () => {
     expect(parseInsightsResponse("")).toBeNull();
     expect(parseInsightsResponse(null)).toBeNull();
+  });
+
+  it("re-ranks actions by impact-per-effort, best first", () => {
+    const raw = JSON.stringify({
+      insights: "x",
+      actions: [
+        { id: "weak", text: "weak", savedKg: 1, cost: "Medium" },
+        { id: "strong", text: "strong", savedKg: 6, cost: "Free" },
+      ],
+    });
+    const result = parseInsightsResponse(raw);
+    expect(result?.actions[0].id).toBe("strong");
+    // The helper score must not leak into the public shape.
+    expect(result?.actions[0]).not.toHaveProperty("impactEffortScore");
   });
 });
 
