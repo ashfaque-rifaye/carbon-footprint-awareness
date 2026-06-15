@@ -61,6 +61,26 @@ describe("buildInsightsPrompt", () => {
     expect(prompt).toContain('"insights"');
     expect(prompt).toContain('"actions"');
   });
+
+  it("applies the CO-STAR framework sections", () => {
+    const prompt = buildInsightsPrompt(normalizeInsightsRequest({}));
+    for (const section of ["# CONTEXT", "# OBJECTIVE", "# STYLE", "# TONE", "# AUDIENCE", "# RESPONSE FORMAT"]) {
+      expect(prompt).toContain(section);
+    }
+  });
+
+  it("includes a chain-of-thought instruction kept out of the output", () => {
+    const prompt = buildInsightsPrompt(normalizeInsightsRequest({}));
+    expect(prompt).toContain("# REASONING");
+    expect(prompt.toLowerCase()).toContain("step by step");
+    expect(prompt).toMatch(/do not include it in the output/i);
+  });
+
+  it("provides a one-shot example of the expected schema", () => {
+    const prompt = buildInsightsPrompt(normalizeInsightsRequest({}));
+    expect(prompt).toContain("# EXAMPLE");
+    expect(prompt).toContain("solar_laundry");
+  });
 });
 
 describe("parseInsightsResponse", () => {

@@ -73,6 +73,22 @@ describe("buildChatSystemPrompt", () => {
     const prompt = buildChatSystemPrompt(normalizeChatProfile({}));
     expect(prompt.toLowerCase()).toContain("sustainability");
   });
+
+  it("applies the CO-STAR framework sections", () => {
+    const prompt = buildChatSystemPrompt(normalizeChatProfile({}));
+    for (const section of ["# CONTEXT", "# OBJECTIVE", "# STYLE", "# TONE", "# AUDIENCE", "# RESPONSE FORMAT"]) {
+      expect(prompt).toContain(section);
+    }
+  });
+
+  it("includes a chain-of-thought instruction and few-shot examples", () => {
+    const prompt = buildChatSystemPrompt(normalizeChatProfile({}));
+    expect(prompt).toContain("# REASONING");
+    expect(prompt.toLowerCase()).toContain("step by step");
+    expect(prompt).toContain("# EXAMPLES");
+    expect(prompt).toContain("Example 1");
+    expect(prompt).toContain("Example 2");
+  });
 });
 
 describe("toGeminiContents", () => {

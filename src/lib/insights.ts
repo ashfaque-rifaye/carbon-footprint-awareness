@@ -84,13 +84,50 @@ export function normalizeInsightsRequest(body: unknown): Required<InsightsReques
   };
 }
 
-/** Build the structured Gemini prompt from a normalized context. */
+/**
+ * Build the structured Gemini prompt from a normalized context.
+ *
+ * The prompt is engineered with the CO-STAR framework (Context, Objective, Style,
+ * Tone, Audience, Response format), reinforced with a one-shot example and an
+ * explicit chain-of-thought instruction. CoT reasoning is performed INTERNALLY so
+ * that the response stays a single clean JSON object (strict format compliance).
+ */
 export function buildInsightsPrompt(ctx: Required<InsightsRequest>): string {
   const { userProfile: p, recentLogs, simulatedSensors: s } = ctx;
-  return `
-You are an expert AI Carbon Reduction Coach. Analyze the user's carbon footprint profile and telemetry to generate tailored, highly actionable and gamified green insights.
 
-User Profile:
+  // One-shot example: anchors the exact output schema, tone, and value ranges so
+  // the model reproduces structure consistently (few-shot prompting).
+  const example = {
+    insights:
+      "### You're on fire, Alex! 🔥\\n\\nYour **3-day streak** and 12.4 kg saved already put you ahead of most newcomers. Here are three tailored hacks:\\n\\n* **Solar Laundry:** Your smart meter is live — run washes at midday to bank free clean-grid offsets.\\n* **Active Commute:** Swap two car trips for cycling to climb past 'Arthur WindPower' on the leaderboard.\\n* **Plant-Forward Lunch:** One meatless lunch a day saves ~1.5 kg CO₂ weekly.",
+    actions: [
+      { id: "solar_laundry", text: "Run laundry during midday solar peak (11 AM–2 PM)", savedKg: 1.2, cost: "Free" },
+      { id: "cycle_commute", text: "Cycle two short commutes this week", savedKg: 4.4, cost: "Free" },
+      { id: "meatless_lunch", text: "Have one plant-based lunch daily", savedKg: 1.5, cost: "Low" },
+    ],
+  };
+
+  return `
+# CONTEXT
+You are the AI Carbon Reduction Coach inside "CarbonSync", a gamified app that helps individuals understand, track, and reduce their personal carbon footprint. You are given a single user's live profile, their recent eco-action log, and readings from their simulated smart-home and transport devices. Emission facts you may rely on: a petrol car emits ~0.22 kg CO2/km; red meat is the most carbon-intensive common food; shifting grid load to peak-solar hours reduces emissions.
+
+# OBJECTIVE
+Produce a personalized performance review plus exactly three concrete, claimable carbon-reduction actions that are realistic for THIS user given their connected devices and recent activity. Tailor every suggestion to the data below — never give generic advice that ignores their context.
+
+# STYLE
+Crisp, concrete, and data-aware. Reference the user's real numbers (streak, kg saved, devices). Each tip must name a specific behavior and an approximate CO2 saving. No vague platitudes.
+
+# TONE
+Upbeat, encouraging, and lightly gamified — like a supportive coach celebrating progress and nudging the next win.
+
+# AUDIENCE
+A motivated individual (not a scientist) who wants practical, everyday steps and a bit of friendly competition.
+
+# REASONING (do this silently, internally — DO NOT include it in the output)
+Think step by step before writing: (1) gauge the user's progress level from points/streak/savings; (2) note which devices are connected and what recent categories they logged; (3) identify the highest-impact gaps; (4) derive three actions that fit their setup with sensible CO2 estimates; (5) only then compose the final JSON.
+
+# USER DATA
+Profile:
 - Display Name: ${p.name}
 - Current Points: ${p.points}
 - Total Carbon Saved: ${p.totalSavedKg} kg CO2
@@ -98,18 +135,27 @@ User Profile:
 - Smart Home Utility Meter Integrated: ${p.smartMeterConnected ? "YES" : "NO"}
 - Transport Activity Tracker Integrated: ${p.transportTrackerConnected ? "YES" : "NO"}
 
-Recent Eco Log activities:
+Recent Eco Log activities (JSON):
 ${JSON.stringify(recentLogs, null, 2)}
 
-Simulated Connected Devices Realtime Feed:
-- Smart Utility Meter: Energy demand reductions of ${s.meterSaving} kWh.
-- Transportation Tracker: Low carbon voyages logged (${s.trackerMiles} km of active public/micro-mobility transit).
+Simulated device feed:
+- Smart Utility Meter: energy demand reductions of ${s.meterSaving} kWh.
+- Transport Tracker: ${s.trackerMiles} km of active/low-carbon transit logged.
 
-Please respond with a JSON object containing:
-1. "insights": A beautifully written Markdown string explaining their performance, praising their active streak, providing three highly creative carbon reduction hacks tailored to their settings, and outlining how they can beat their fellow leaderboard competitors.
-2. "actions": An array of 3 concrete suggested challenge actions. Each item is an object with fields: "id" (string), "text" (string), "savedKg" (number), "cost" ("Free" | "Low" | "Medium").
+# RESPONSE FORMAT (STRICT)
+Return ONE raw JSON object and NOTHING else — no markdown code fences, no prose before or after. It MUST match this schema exactly:
+{
+  "insights": string,   // Markdown; 1 short intro line + a 3-bullet list of tailored hacks
+  "actions": [          // EXACTLY 3 items
+    { "id": string, "text": string, "savedKg": number, "cost": "Free" | "Low" | "Medium" }
+  ]
+}
+Rules: "savedKg" is a positive number (kg CO2). "cost" is exactly one of "Free", "Low", or "Medium". "id" is a short lowercase snake_case slug.
 
-Make the tone highly engaging, environmental, upbeat, and gamified. Do not use markdown backticks around the json, return a clean raw json parseable object.
+# EXAMPLE (for a different user named Alex — match this structure, not its content)
+${JSON.stringify(example)}
+
+Now generate the JSON for the user described in USER DATA.
 `.trim();
 }
 

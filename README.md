@@ -85,6 +85,32 @@ Both endpoints validate and bound untrusted input, parse model output defensivel
 and degrade to deterministic rule-based responses if the API key is missing or a
 call fails — so the experience never breaks.
 
+### Prompt engineering strategy
+
+Both prompts are deliberately engineered rather than ad-hoc, which is what keeps
+the assistant accurate, consistently formatted, and free of hallucinated user
+data. See [`src/lib/insights.ts`](src/lib/insights.ts) and
+[`src/lib/chat.ts`](src/lib/chat.ts).
+
+- **CO-STAR framework** — every prompt is structured into explicit
+  **C**ontext, **O**bjective, **S**tyle, **T**one, **A**udience, and
+  **R**esponse-format sections, so the model always knows the situation, the goal,
+  the voice, the reader, and the exact output shape.
+- **Few-shot examples** — the insights prompt embeds a one-shot example of the
+  exact JSON schema; the chat system prompt embeds two Q&A examples. This locks in
+  structure and tone.
+- **Chain-of-Thought (CoT)** — both prompts instruct the model to reason
+  step-by-step *internally* (gauge progress → check devices/logs → find gaps →
+  derive actions). For the JSON endpoint the reasoning is explicitly kept **out**
+  of the output to preserve strict format compliance.
+- **Strict output format** — the insights endpoint demands a single raw JSON
+  object (no code fences, exactly 3 actions, enumerated `cost` values), and the
+  response is then validated/coerced in code before it reaches the UI.
+- **Anti-hallucination grounding** — prompts pass only the user's real, validated
+  stats and instruct the model to never invent personal data and to say so when a
+  value is missing. Verified live: with the transport tracker off, the coach
+  suggested *manual* logging instead of claiming an automatic feed.
+
 ### Architecture
 
 - **Frontend:** React 19 + TypeScript + Vite, Tailwind CSS v4, Framer Motion.
@@ -138,7 +164,7 @@ npm start       # serve the production build
 
 ## 5. Testing
 
-Decision logic is covered by unit tests run with `npm test` (Vitest, 53 tests):
+Decision logic is covered by unit tests run with `npm test` (Vitest, 58 tests):
 
 - [`src/lib/carbon.test.ts`](src/lib/carbon.test.ts) — scoring, streak progression
   and resets, transit/smart-meter offsets, tree-equivalence framing, and edge
@@ -148,8 +174,8 @@ Decision logic is covered by unit tests run with `npm test` (Vitest, 53 tests):
   (including code-fence stripping and malformed payloads), and the deterministic
   fallback.
 - [`src/lib/chat.test.ts`](src/lib/chat.test.ts) — chat history validation and
-  bounding, system-prompt grounding, Gemini content mapping, and keyword-based
-  fallback replies.
+  bounding, system-prompt grounding, CO-STAR/CoT/few-shot prompt structure,
+  Gemini content mapping, and keyword-based fallback replies.
 
 ---
 
