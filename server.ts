@@ -25,7 +25,16 @@ dotenv.config();
 // Initialize the standard @google/genai SDK with server key and user-agent header.
 // The key is read server-side only and is never exposed to the browser.
 const apiKey = process.env.GEMINI_API_KEY;
-const GEMINI_MODEL = "gemini-3.5-flash";
+
+// Model selection is env-configurable so the deployment can be retargeted without
+// a code change. We attempt the primary model first, then degrade through a stable
+// fallback before the rule-based engine takes over. This keeps the AI coach alive
+// when the newest model is momentarily overloaded (503 / UNAVAILABLE), instead of
+// collapsing straight to templates.
+const PRIMARY_MODEL = process.env.GEMINI_MODEL || "gemini-3.5-flash";
+const FALLBACK_MODEL = process.env.GEMINI_FALLBACK_MODEL || "gemini-2.5-flash";
+const MODEL_CHAIN = [...new Set([PRIMARY_MODEL, FALLBACK_MODEL])];
+
 let ai: GoogleGenAI | null = null;
 
 if (apiKey) {
@@ -43,6 +52,29 @@ if (apiKey) {
   );
 }
 
+// Run a generateContent request across the model chain. Each model is tried in
+// order; a transient error (e.g. an overloaded 503 model) advances to the next.
+// Throws only if every model fails, letting the caller fall back to rule-based
+// generation. Assumes `ai` is non-null (callers guard on it).
+async function generateWithFallback(
+  params: { contents: unknown; config?: Record<string, unknown> }
+): Promise<{ text?: string }> {
+  let lastError: unknown;
+  for (const model of MODEL_CHAIN) {
+    try {
+      return await ai!.models.generateContent({
+        model,
+        contents: params.contents as never,
+        config: params.config as never,
+      });
+    } catch (err) {
+      lastError = err;
+      console.warn(`Gemini model "${model}" failed; trying next in chain.`, err);
+    }
+  }
+  throw lastError;
+}
+
 async function startServer() {
   const app = express();
   const PORT = Number(process.env.PORT) || 3000;
@@ -52,7 +84,11 @@ async function startServer() {
 
   // Lightweight health check for container/orchestration probes.
   app.get("/api/health", (_req, res) => {
-    res.json({ status: "ok", aiEnabled: Boolean(ai) });
+    res.json({
+      status: "ok",
+      aiEnabled: Boolean(ai),
+      models: ai ? MODEL_CHAIN : [],
+    });
   });
 
   // API endpoint: Generate personalized carbon insights using Gemini.
@@ -66,8 +102,7 @@ async function startServer() {
     }
 
     try {
-      const response = await ai.models.generateContent({
-        model: GEMINI_MODEL,
+      const response = await generateWithFallback({
         contents: buildInsightsPrompt(ctx),
         config: {
           responseMimeType: "application/json",
@@ -98,8 +133,7 @@ async function startServer() {
     }
 
     try {
-      const response = await ai.models.generateContent({
-        model: GEMINI_MODEL,
+      const response = await generateWithFallback({
         contents: toGeminiContents(messages),
         config: {
           systemInstruction: buildChatSystemPrompt(profile),
