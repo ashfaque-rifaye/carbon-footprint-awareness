@@ -44,32 +44,34 @@ first. That is a real assistant, not a template.
 ## 4. Architecture (one paragraph)
 
 A **React + TypeScript frontend** (input, dashboard, recommendations) talks to a
-thin **Express backend** that owns the Gemini key. A pure **rules + analytics
-engine** (`src/lib/carbon.ts`, `src/lib/footprint.ts`) does all emissions scoring,
-category breakdown, and impact/effort ranking. An **LLM layer**
-(`src/lib/insights.ts`, `src/lib/chat.ts`) handles explanation, personalization,
-and next-step guidance. **Firebase Auth + Firestore** store the user profile and
-activity history. If the AI is unavailable, deterministic fallbacks keep every
-feature working.
+thin **Express backend** that owns the Gemini key, all data persistence, and
+authentication. A pure **rules + analytics engine** (`src/lib/carbon.ts`,
+`src/lib/footprint.ts`) does all emissions scoring, category breakdown, and
+impact/effort ranking. An **LLM layer** (`src/lib/insights.ts`, `src/lib/chat.ts`)
+handles explanation, personalization, and next-step guidance. A **local SQLite
+database** (`src/lib/db.ts`, via `better-sqlite3`) stores accounts, the activity
+ledger, and login sessions — no external or cloud database is used. **Email +
+password auth** (`src/lib/auth.ts`) hashes credentials with Node's built-in
+scrypt and issues an httpOnly session cookie. If the AI is unavailable,
+deterministic fallbacks keep every feature working.
 
 ```
-Frontend (React)
+Frontend (React)  ──►  Email + password auth (httpOnly session cookie)
    │  user actions + profile
    ▼
 Express API  ──►  Rules + Analytics engine   (scoring, top-driver, ranking)
    │              carbon.ts · footprint.ts
+   ├──►  LLM layer (Gemini)  ──►  insights.ts (JSON coach) · chat.ts (assistant)
+   │        validated + re-ranked output
    ▼
-LLM layer (Gemini)  ──►  insights.ts (JSON coach) · chat.ts (assistant)
-   │  validated + re-ranked output
-   ▼
-Firestore (profile + activity history)
+Local SQLite DB (db.ts)  ──  users · emissions_logs · sessions
 ```
 
 ## 5. Logic Flow
 
 1. User logs an action (challenge, custom offset, or simulated device event).
-2. `carbon.ts` computes points, streak, and CO₂ saved; the entry is written to the
-   Firestore activity ledger.
+2. The server (`carbon.ts`) authoritatively computes points, streak, and CO₂
+   saved; the entry is written to the local SQLite activity ledger.
 3. `footprint.ts` aggregates the ledger into a **category breakdown** and finds the
    **top emission driver** plus untapped categories.
 4. `insights.ts` builds a CO-STAR prompt that includes that precomputed analysis;
@@ -113,12 +115,16 @@ Prompts are engineered, not ad-hoc (`src/lib/insights.ts`, `src/lib/chat.ts`):
 
 - IoT devices are **simulated** — no hardware needed. Emission factors
   (~0.22 kg CO₂/km petrol; ~22 kg CO₂/tree/yr) are representative, not certified.
-- The leaderboard seeds with sample competitors until real users sync.
-- Credential sync is a popup-blocker-resilient fallback to Google sign-in.
+- The leaderboard seeds with sample competitors alongside real registered users.
+- Storage is a **local SQLite file** (no cloud database). On an ephemeral host
+  like Cloud Run the file lives at `DB_PATH` (e.g. `/tmp/carbonsync.db`) and
+  persists for the instance's lifetime; run with `--min-instances=1` (or mount a
+  volume / point `DB_PATH` at a non-Google managed SQL host such as Turso) for
+  durable persistence.
 
 ## 8. Testing
 
-`npm test` runs **72 unit tests** (Vitest) over the decision logic:
+`npm test` runs **97 unit tests** (Vitest) over the decision, auth, and data logic:
 
 - `carbon.test.ts` — scoring, streaks, offsets, equivalence, edge cases.
 - `footprint.test.ts` — category aggregation, top-driver detection, impact/effort
@@ -127,6 +133,11 @@ Prompts are engineered, not ad-hoc (`src/lib/insights.ts`, `src/lib/chat.ts`):
   footprint injection, defensive JSON parsing, **action re-ranking**, fallback.
 - `chat.test.ts` — history validation, prompt grounding, content mapping,
   keyword fallback.
+- `auth.test.ts` — scrypt hash/verify (incl. constant-time + garbage inputs),
+  email validation, registration/login payload validation.
+- `db.test.ts` — runs against an in-memory SQLite DB: user creation, duplicate-email
+  rejection, session lifecycle, owner-scoped log CRUD, stats/profile updates,
+  leaderboard ranking, and row→DTO mapping (no secret leakage).
 
 ## 9. How to Run
 
@@ -159,9 +170,12 @@ curl -s localhost:3000/api/insights -H "Content-Type: application/json" -d '{
 ## 10. Security & Accessibility (built in)
 
 - **Security:** Gemini key is server-side only (gitignored `.env.local`); request
-  bodies are size-limited and every field validated before prompting; Firestore
-  uses default-deny, owner-only, schema-validated, immutable-log rules; model
-  output is parsed defensively and never executed.
+  bodies are size-limited and every field validated before use; passwords are
+  hashed with scrypt (never stored or logged in plaintext) and compared in
+  constant time; auth uses an httpOnly, SameSite=Lax, `Secure`-in-production
+  session cookie; every data endpoint is session-guarded and all queries are
+  owner-scoped with parameterized SQL (no injection); model output is parsed
+  defensively and never executed.
 - **Accessibility:** skip link, semantic landmarks, `aria-label`s on icon buttons,
   `role="tab"`/`aria-selected` navigation, `aria-live` status regions, labeled
   inputs. (Full WCAG sign-off needs manual assistive-tech testing.)
@@ -177,5 +191,6 @@ curl -s localhost:3000/api/insights -H "Content-Type: application/json" -d '{
 ### Efficiency notes
 
 Vendor libraries are split into cacheable chunks (`manualChunks`), keeping the main
-bundle ~265 kB. Logs sent to the model are capped (`MAX_RECENT_LOGS`); analytics
-run as O(n) passes over the activity log.
+bundle ~284 kB (dropping the Firebase SDK removed a ~460 kB vendor chunk). Logs
+sent to the model are capped (`MAX_RECENT_LOGS`); analytics run as O(n) passes over
+the activity log. SQLite reads are indexed and use prepared statements.

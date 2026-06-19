@@ -1,42 +1,54 @@
 import React, { useState, useEffect } from "react";
-import { 
-  Sprout, Globe, Zap, Compass, Flame, Trophy, TrendingDown, Plus, 
+import {
+  Sprout, Globe, Zap, Compass, Flame, Trophy, TrendingDown, Plus,
   HelpCircle, Trash2, LogIn, LogOut, Check, ArrowRight, Share2, Award, ShieldAlert, Bike, Leaf,
-  LayoutDashboard, History, Sparkles, Bot, MessageSquare, BarChart3, ShieldCheck, Cpu, Target 
+  LayoutDashboard, History, Sparkles, Bot, MessageSquare, BarChart3, ShieldCheck, Cpu, Target
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
-import { auth, db, googleProvider, handleFirestoreError, OperationType } from "./lib/firebase";
-import { signInWithPopup, signInAnonymously, signOut, onAuthStateChanged, User as FirebaseUser } from "firebase/auth";
-import { 
-  doc, setDoc, getDoc, deleteDoc, collection, getDocs, addDoc, onSnapshot, query, orderBy, limit 
-} from "firebase/firestore";
-
-import { 
-  UserProfile, EmissionsLog, Challenge, LeaderboardEntry, Milestone, 
-  STATIC_CHALLENGES, STATIC_MILESTONES 
-} from "./types";
 import {
-  calculatePoints, roundKg, nextStreak, resolveStreakOnLogin, treesEquivalent, toDateKey
-} from "./lib/carbon";
+  UserProfile, EmissionsLog, Challenge, LeaderboardEntry, Milestone,
+  STATIC_CHALLENGES, STATIC_MILESTONES
+} from "./types";
+import { treesEquivalent, toDateKey } from "./lib/carbon";
 
 import DeviceSimulator from "./components/DeviceSimulator";
 import CommunityLeaderboard from "./components/CommunityLeaderboard";
 import AiInsights from "./components/AiInsights";
 import EcoAssistant from "./components/EcoAssistant";
 
+/** Same-origin JSON fetch helper that always sends the session cookie. */
+async function apiFetch(path: string, options: RequestInit = {}): Promise<Response> {
+  return fetch(path, {
+    credentials: "include",
+    headers: { "Content-Type": "application/json", ...(options.headers || {}) },
+    ...options,
+  });
+}
+
+/** Derive which milestones are unlocked from the user's points and streak. */
+function deriveMilestones(points: number, streakDays: number): Milestone[] {
+  return STATIC_MILESTONES.map((ms) => ({
+    ...ms,
+    unlocked: ms.id === "badge_streak_king" ? streakDays >= 5 : points >= ms.pointsRequired,
+  }));
+}
+
 export default function App() {
   // Authentication & session variables
-  const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loadingSession, setLoadingSession] = useState<boolean>(true);
+  const [activeTab, setActiveTab] = useState<"dashboard" | "ledger" | "insights" | "assistant" | "leaderboard">("dashboard");
+
+  // Auth form inputs
+  const [authMode, setAuthMode] = useState<"login" | "register">("register");
   const [authName, setAuthName] = useState<string>("");
   const [authEmail, setAuthEmail] = useState<string>("");
+  const [authPassword, setAuthPassword] = useState<string>("");
   const [authAvatar, setAuthAvatar] = useState<"sprout" | "globe" | "leaf" | "bike">("sprout");
-  const [activeTab, setActiveTab] = useState<"dashboard" | "ledger" | "insights" | "assistant" | "leaderboard">("dashboard");
-  const [showProgrammaticAuthPrompt, setShowProgrammaticAuthPrompt] = useState<boolean>(false);
+  const [authError, setAuthError] = useState<string>("");
 
-  // Firestore sync collections
+  // Server-synced collections
   const [emissionsLogs, setEmissionsLogs] = useState<EmissionsLog[]>([]);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [milestones, setMilestones] = useState<Milestone[]>(STATIC_MILESTONES);
@@ -64,242 +76,142 @@ export default function App() {
   // Today marker string (YYYY-MM-DD)
   const todayStr = toDateKey();
 
-  // 1. Listen to Authentication Changes & Load cached profile session if any
+  // 1. Restore any existing session on first load; otherwise show the landing page.
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setLoadingSession(true);
-      if (user) {
-        setCurrentUser(user);
-        await handleSyncUserProfile(user);
-      } else {
-        // Fallback: Check if there's a saved persistent cloud session in localStorage
-        const savedName = localStorage.getItem("carbonsync_saved_name");
-        const savedEmail = localStorage.getItem("carbonsync_saved_email");
-        if (savedName && savedEmail) {
-          const customUid = "user_" + savedEmail.toLowerCase().replace(/[^a-zA-Z0-9]/g, "_");
-          const savedUser = {
-            uid: customUid,
-            displayName: savedName,
-            email: savedEmail,
-          };
-          setCurrentUser(savedUser as any);
-          await handleSyncUserProfile(savedUser as any);
+    (async () => {
+      try {
+        const res = await apiFetch("/api/auth/me");
+        if (res.ok) {
+          const data = await res.json();
+          applyProfile(data.profile);
+          await Promise.all([loadLogs(), loadLeaderboard()]);
         } else {
-          setCurrentUser(null);
-          setUserProfile(null);
-          setEmissionsLogs([]);
-          setLoadingSession(false);
+          // Not signed in: still load the public leaderboard for the landing view.
+          await loadLeaderboard();
         }
+      } catch (err) {
+        console.error("Session restore failed:", err);
+      } finally {
+        setLoadingSession(false);
       }
-    });
-
-    // Load static leaderboard values
-    loadStaticLeaderboard();
-
-    return () => unsubscribe();
+    })();
   }, []);
 
-  // Baseline mock standings in case database connectivity hasn't synced custom nodes yet
-  const loadStaticLeaderboard = () => {
-    setLeaderboard([
-      { userId: "lead_1", name: "Helena BioShield", points: 3420, totalSavedKg: 91.2, avatar: "leaf" },
-      { userId: "lead_2", name: "Arthur WindPower", points: 2150, totalSavedKg: 58.4, avatar: "globe" },
-      { userId: "lead_3", name: "Chloe CycleFast", points: 1280, totalSavedKg: 34.1, avatar: "bike" },
-    ]);
+  // Set profile state and recompute unlocked milestones from its stats.
+  const applyProfile = (profile: UserProfile) => {
+    setUserProfile(profile);
+    setMilestones(deriveMilestones(profile.points, profile.streakDays));
   };
 
-  // 2. Fetch or Create user profile database document
-  const handleSyncUserProfile = async (firebaseUser: FirebaseUser) => {
-    const profileRef = doc(db, "users", firebaseUser.uid);
-    const leaderboardRef = doc(db, "leaderboard", firebaseUser.uid);
-    
+  // Fetch the signed-in user's activity ledger.
+  const loadLogs = async () => {
     try {
-      const snap = await getDoc(profileRef);
-      let profileData: UserProfile;
-
-      if (snap.exists()) {
-        profileData = snap.data() as UserProfile;
-        
-        // Compute streak validity on login
-        const validatedStreak = resolveStreakOnLogin(profileData.streakDays, profileData.lastActiveDate, todayStr);
-        if (validatedStreak !== profileData.streakDays) {
-          profileData.streakDays = validatedStreak;
-          profileData.lastActiveDate = todayStr;
-          await setDoc(profileRef, profileData, { merge: true });
-        }
-        setUserProfile(profileData);
-      } else {
-        // First login: Generate complete compliant profile
-        profileData = {
-          userId: firebaseUser.uid,
-          name: firebaseUser.displayName || "Eco Voyager",
-          email: firebaseUser.email || "",
-          points: 0,
-          totalSavedKg: 0.0,
-          streakDays: 1,
-          lastActiveDate: todayStr,
-          avatar: "sprout",
-          smartMeterConnected: false,
-          transportTrackerConnected: false,
-          createdAt: new Date().toISOString()
-        };
-
-        await setDoc(profileRef, profileData);
-        
-        // Also register flat standings summary
-        const leaderboardEntry: LeaderboardEntry = {
-          userId: firebaseUser.uid,
-          name: profileData.name,
-          points: 0,
-          totalSavedKg: 0.0,
-          avatar: "sprout"
-        };
-        await setDoc(leaderboardRef, leaderboardEntry);
-        
-        setUserProfile(profileData);
+      const res = await apiFetch("/api/logs");
+      if (res.ok) {
+        const data = await res.json();
+        setEmissionsLogs(data.logs || []);
       }
-
-      // Initialise real-time Emissions log binding for user
-      bindEmissionsLogs(firebaseUser.uid);
-      // Initialise leaderboard real-time binding
-      bindLeaderboard(firebaseUser.uid, profileData);
-
-    } catch (error) {
-      handleFirestoreError(error, OperationType.GET, `users/${firebaseUser.uid}`);
-    } finally {
-      setLoadingSession(false);
+    } catch (err) {
+      console.error("Failed to load logs:", err);
     }
   };
 
-  // Setup Real-time log listeners
-  const bindEmissionsLogs = (uid: string) => {
-    const logsCol = collection(db, "users", uid, "emissions_logs");
-    
-    onSnapshot(logsCol, (snap) => {
-      const logsList: EmissionsLog[] = [];
-      snap.forEach((d) => {
-        logsList.push(d.data() as EmissionsLog);
-      });
-      // Sort newest first
-      logsList.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-      setEmissionsLogs(logsList);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, `users/${uid}/emissions_logs`);
-    });
-  };
-
-  // Bind real-time community rankings subscription
-  const bindLeaderboard = (uid: string, myProfile: UserProfile) => {
-    const leaderboardCol = collection(db, "leaderboard");
-    const q = query(leaderboardCol, orderBy("points", "desc"), limit(12));
-
-    onSnapshot(q, (snap) => {
-      const list: LeaderboardEntry[] = [];
-      let foundMe = false;
-      
-      snap.forEach((d) => {
-        const item = d.data() as LeaderboardEntry;
-        list.push(item);
-        if (item.userId === uid) foundMe = true;
-      });
-
-      // If user is logged in but not in top limit list, push her own standings block manually so she can trace her rank
-      if (!foundMe && myProfile) {
-        list.push({
-          userId: uid,
-          name: myProfile.name,
-          points: myProfile.points,
-          totalSavedKg: myProfile.totalSavedKg,
-          avatar: myProfile.avatar,
-        });
-      }
-      setLeaderboard(list);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, "leaderboard");
-    });
-  };
-
-  // Google Login popup launcher with firebase error diagnostics
-  const handleGoogleSignIn = async () => {
-    setLoadingSession(true);
+  // Fetch the community standings (seeded with sample competitors server-side).
+  const loadLeaderboard = async () => {
     try {
-      await signInWithPopup(auth, googleProvider);
-    } catch (err: any) {
-      console.error("Google popup error:", err);
-      setShowProgrammaticAuthPrompt(true);
-      setAlertNotification(`Google Auth popup was blocked by browser frame isolation. Safe direct cloud credentials credentials can be completed below.`);
-      setLoadingSession(false);
+      const res = await apiFetch("/api/leaderboard");
+      if (res.ok) {
+        const data = await res.json();
+        setLeaderboard(data.leaderboard || []);
+      }
+    } catch (err) {
+      console.error("Failed to load leaderboard:", err);
     }
   };
 
-  // Secure Direct Cloud Connection (Alternative secure authentication that writes directly to Firestore)
-  const handleQuickCredentialSync = async (name: string, email: string, avatar: "sprout" | "globe" | "leaf" | "bike") => {
-    if (!name.trim() || !email.trim()) {
-      setAlertNotification("Please provide both your Name and Email to synchronize.");
+  // 2. Register a new account (name + email + password).
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError("");
+    if (!authName.trim() || !authEmail.trim() || authPassword.length < 8) {
+      setAuthError("Enter your name, a valid email, and a password of at least 8 characters.");
       return;
     }
     setLoadingSession(true);
-    
-    // Hash-like deterministic clean UID
-    const safeUid = "user_" + email.toLowerCase().trim().replace(/[^a-zA-Z0-9]/g, "_");
-    
     try {
-      let loggedUser = null;
-      try {
-        // Attempt anonymous Firebase login so request.auth is populated in firebase firestore rules security gates
-        const anonCred = await signInAnonymously(auth);
-        if (anonCred.user) {
-          loggedUser = {
-            uid: anonCred.user.uid,
-            displayName: name.trim(),
-            email: email.toLowerCase().trim(),
-          };
-        }
-      } catch (e) {
-        console.warn("Direct anonymous auth is disabled, establishing persistent sync layer under safe custom key.", e);
+      const res = await apiFetch("/api/auth/register", {
+        method: "POST",
+        body: JSON.stringify({
+          name: authName.trim(),
+          email: authEmail.trim(),
+          password: authPassword,
+          avatar: authAvatar,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setAuthError(data.error || "Could not create your account.");
+        return;
       }
-
-      if (!loggedUser) {
-        loggedUser = {
-          uid: safeUid,
-          displayName: name.trim(),
-          email: email.toLowerCase().trim(),
-        };
-      }
-
-      // Persist credentials locally
-      localStorage.setItem("carbonsync_saved_name", name.trim());
-      localStorage.setItem("carbonsync_saved_email", email.toLowerCase().trim());
-      localStorage.setItem("carbonsync_saved_avatar", avatar);
-
-      setCurrentUser(loggedUser as any);
-      await handleSyncUserProfile(loggedUser as any);
-      setAlertNotification(`Welcome to CarbonSync, ${name}! Your core account has been synchronized successfully.`);
-    } catch (error: any) {
-      console.error(error);
-      setAlertNotification(`Synchronization error: ${error.message || error}`);
+      applyProfile(data.profile);
+      await Promise.all([loadLogs(), loadLeaderboard()]);
+      setAuthPassword("");
+      setAlertNotification(`Welcome to CarbonSync, ${data.profile.name}! Your account is ready.`);
+    } catch (err) {
+      console.error(err);
+      setAuthError("Network error. Please try again.");
     } finally {
       setLoadingSession(false);
     }
   };
 
-  // Session Logouts
-  const handleLogout = async () => {
-    localStorage.removeItem("carbonsync_saved_name");
-    localStorage.removeItem("carbonsync_saved_email");
-    localStorage.removeItem("carbonsync_saved_avatar");
-    setUserProfile(null);
-    setEmissionsLogs([]);
-    setCurrentUser(null);
-    try {
-      await signOut(auth);
-    } catch (err) {
-      console.error("SignOut error:", err);
+  // 3. Log in with an existing email + password.
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError("");
+    if (!authEmail.trim() || !authPassword) {
+      setAuthError("Enter your email and password.");
+      return;
     }
-    setAlertNotification("Secure session closed.");
+    setLoadingSession(true);
+    try {
+      const res = await apiFetch("/api/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ email: authEmail.trim(), password: authPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setAuthError(data.error || "Invalid email or password.");
+        return;
+      }
+      applyProfile(data.profile);
+      await Promise.all([loadLogs(), loadLeaderboard()]);
+      setAuthPassword("");
+      setAlertNotification(`Welcome back, ${data.profile.name}!`);
+    } catch (err) {
+      console.error(err);
+      setAuthError("Network error. Please try again.");
+    } finally {
+      setLoadingSession(false);
+    }
   };
 
-  // 3. Log a positive Carbon-Saving Activity (manual inputs, quick-challenges, simulations)
+  // Session logout
+  const handleLogout = async () => {
+    try {
+      await apiFetch("/api/auth/logout", { method: "POST" });
+    } catch (err) {
+      console.error("Logout error:", err);
+    }
+    setUserProfile(null);
+    setEmissionsLogs([]);
+    setMilestones(STATIC_MILESTONES);
+    setActiveTab("dashboard");
+    setAlertNotification("You have been signed out.");
+  };
+
+  // 4. Log a positive Carbon-Saving Activity (manual inputs, quick-challenges, simulations).
+  //    Scoring, streak, and totals are computed server-side and returned authoritatively.
   const logCarbonSavingActivity = async (
     activityName: string,
     category: "transport" | "energy" | "diet" | "waste",
@@ -307,72 +219,33 @@ export default function App() {
     source: "manual" | "smart_meter" | "transport_tracker"
   ) => {
     if (!userProfile) return;
-
-    // Standard scoring: flat base points + bonus per kg of carbon offset saved.
-    const pointsAwarded = calculatePoints(kgSaved);
-    const newPointsTotal = userProfile.points + pointsAwarded;
-    const newSavedTotal = roundKg(userProfile.totalSavedKg + kgSaved);
-
-    // Calculate dynamic streak based on last active date
-    const currentStreak = nextStreak(userProfile.streakDays, userProfile.lastActiveDate, todayStr);
-
-    // Prepare updated profiles
-    const updatedProfile: UserProfile = {
-      ...userProfile,
-      points: newPointsTotal,
-      totalSavedKg: newSavedTotal,
-      streakDays: currentStreak,
-      lastActiveDate: todayStr
-    };
-
-    // Prepare new log entry data
-    const newLogId = `log_${Date.now()}`;
-    const newLog: EmissionsLog = {
-      logId: newLogId,
-      userId: userProfile.userId,
-      category,
-      kgSaved,
-      activityName,
-      timestamp: new Date().toISOString(),
-      source
-    };
-
-    // Direct Firestore sync commits!
-    if (currentUser) {
-      try {
-        const userDocRef = doc(db, "users", currentUser.uid);
-        const logDocRef = doc(db, "users", currentUser.uid, "emissions_logs", newLogId);
-        const leaderboardDocRef = doc(db, "leaderboard", currentUser.uid);
-
-        // Batch update
-        await setDoc(userDocRef, updatedProfile, { merge: true });
-        await setDoc(logDocRef, newLog);
-        await setDoc(leaderboardDocRef, {
-          userId: currentUser.uid,
-          name: updatedProfile.name,
-          points: newPointsTotal,
-          totalSavedKg: newSavedTotal,
-          avatar: updatedProfile.avatar
-        }, { merge: true });
-
-        // Update local state temporarily
-        setUserProfile(updatedProfile);
-
-        // Increment sensory values for insights logic
-        if (source === "smart_meter") {
-          setSimulatedSensors((prev) => ({ ...prev, meterSaving: prev.meterSaving + 0.5 }));
-        } else if (source === "transport_tracker") {
-          setSimulatedSensors((prev) => ({ ...prev, trackerMiles: prev.trackerMiles + kgSaved }));
-        }
-
-        // Check milestones
-        checkMilestoneAchievements(newPointsTotal, currentStreak);
-        
-        // Float points alert
-        triggerFloatingPointsFeedback(pointsAwarded);
-      } catch (err) {
-        handleFirestoreError(err, OperationType.WRITE, `users/${currentUser.uid}/emissions_logs/${newLogId}`);
+    try {
+      const res = await apiFetch("/api/logs", {
+        method: "POST",
+        body: JSON.stringify({ activityName, category, kgSaved, source }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setAlertNotification(data.error || "Could not log this activity.");
+        return;
       }
+
+      setUserProfile(data.profile);
+      setEmissionsLogs((prev) => [data.log, ...prev]);
+
+      // Increment simulated sensor values for the insights logic.
+      if (source === "smart_meter") {
+        setSimulatedSensors((prev) => ({ ...prev, meterSaving: prev.meterSaving + 0.5 }));
+      } else if (source === "transport_tracker") {
+        setSimulatedSensors((prev) => ({ ...prev, trackerMiles: prev.trackerMiles + kgSaved }));
+      }
+
+      checkMilestoneAchievements(data.profile.points, data.profile.streakDays);
+      triggerFloatingPointsFeedback(data.pointsAwarded);
+      loadLeaderboard();
+    } catch (err) {
+      console.error("Log activity error:", err);
+      setAlertNotification("Network error while logging activity.");
     }
   };
 
@@ -382,27 +255,10 @@ export default function App() {
     const currentMilestones = milestones.map((ms) => {
       if (ms.unlocked) return ms;
 
-      let passes = false;
-      if (ms.id === "badge_streak_king" && streakTotal >= 5) {
-        passes = true;
-      } else if (pointsTotal >= ms.pointsRequired) {
-        passes = true;
-      }
-
+      const passes = ms.id === "badge_streak_king" ? streakTotal >= 5 : pointsTotal >= ms.pointsRequired;
       if (passes) {
         setCongratsBadge(ms.badge + " Unlocked Badge: " + ms.title + "!");
         unlockedAny = true;
-        // Save the completed challenge status record to Firestore when synced
-        if (currentUser) {
-          const challengeDocId = `completed_${ms.id}`;
-          const challengeRef = doc(db, "users", currentUser.uid, "completed_challenges", challengeDocId);
-          setDoc(challengeRef, {
-            challengeId: ms.id,
-            userId: currentUser.uid,
-            completedAt: new Date().toISOString(),
-            pointsEarned: 100
-          }).catch(console.error);
-        }
         return { ...ms, unlocked: true };
       }
       return ms;
@@ -422,19 +278,36 @@ export default function App() {
   // Helper delete action
   const handleDeleteLogEntry = async (logId: string) => {
     if (!userProfile) return;
-    const targetLog = emissionsLogs.find((l) => l.logId === logId);
-    if (!targetLog) return;
-
-    if (currentUser) {
-      try {
-        const logDocRef = doc(db, "users", currentUser.uid, "emissions_logs", logId);
-        await deleteDoc(logDocRef);
-        setEmissionsLogs(emissionsLogs.filter((l) => l.logId !== logId));
+    try {
+      const res = await apiFetch(`/api/logs/${encodeURIComponent(logId)}`, { method: "DELETE" });
+      if (res.ok) {
+        setEmissionsLogs((prev) => prev.filter((l) => l.logId !== logId));
         setAlertNotification("Activity log entry cleared.");
         setTimeout(() => setAlertNotification(""), 3500);
-      } catch (err) {
-        handleFirestoreError(err, OperationType.DELETE, `users/${currentUser.uid}/emissions_logs/${logId}`);
       }
+    } catch (err) {
+      console.error("Delete log error:", err);
+    }
+  };
+
+  // Persist a device-connection toggle (optimistic update + PATCH).
+  const updateToggle = async (
+    field: "smartMeterConnected" | "transportTrackerConnected",
+    val: boolean
+  ) => {
+    if (!userProfile) return;
+    setUserProfile({ ...userProfile, [field]: val });
+    try {
+      const res = await apiFetch("/api/profile", {
+        method: "PATCH",
+        body: JSON.stringify({ [field]: val }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setUserProfile(data.profile);
+      }
+    } catch (err) {
+      console.error("Toggle update error:", err);
     }
   };
 
@@ -509,7 +382,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#0a1a10] font-sans text-slate-100 flex flex-col justify-between relative overflow-hidden">
-      
+
       {/* Skip link for keyboard & screen-reader users */}
       <a
         href="#main-content"
@@ -528,7 +401,7 @@ export default function App() {
       {/* Banner / Header */}
       <header className="sticky top-4 z-50 max-w-7xl mx-auto w-[calc(100%-2rem)] bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl shadow-lg relative">
         <div className="px-4 sm:px-6 lg:px-8 h-18 flex items-center justify-between">
-          
+
           {/* Logo element representation */}
           <div className="flex items-center gap-3">
             <div className="p-2 bg-emerald-400 rounded-xl shadow-lg shadow-emerald-500/20">
@@ -548,27 +421,28 @@ export default function App() {
               <div className="flex items-center gap-3 bg-white/10 pl-3.5 pr-2 py-1.5 rounded-full border border-white/20">
                 <div className="text-right hidden sm:block">
                   <span className="text-xs text-slate-100 font-semibold block">{userProfile.name}</span>
-                  <span className="text-[9px] text-emerald-300 font-mono font-bold block">CLOUD SYNCED</span>
+                  <span className="text-[9px] text-emerald-300 font-mono font-bold block">SIGNED IN</span>
                 </div>
                 <span className="bg-white/15 p-1.5 rounded-full flex items-center justify-center">{renderAvatarInline(userProfile.avatar)}</span>
                 <button
                   type="button"
                   onClick={handleLogout}
                   className="p-2 hover:bg-red-500/10 text-slate-300 hover:text-red-400 rounded-full transition-all cursor-pointer"
-                  title="Disconnect Profile"
-                  aria-label="Disconnect profile and sign out"
+                  title="Sign out"
+                  aria-label="Sign out of your account"
                 >
                   <LogOut className="w-4 h-4" aria-hidden="true" />
                 </button>
               </div>
             ) : (
               <div className="flex items-center gap-2">
-                <button
-                  onClick={handleGoogleSignIn}
+                <a
+                  href="#get-started"
+                  onClick={() => setAuthMode("login")}
                   className="px-4 py-2 bg-emerald-500 text-slate-950 hover:bg-emerald-400 rounded-lg text-xs font-display font-extrabold flex items-center gap-2 transition-all shadow-md shadow-emerald-500/15 hover:shadow-emerald-500/30 active:scale-95 cursor-pointer"
                 >
-                  <LogIn className="w-4 h-4 shrink-0" /> Google Auth
-                </button>
+                  <LogIn className="w-4 h-4 shrink-0" /> Log in
+                </a>
               </div>
             )}
           </div>
@@ -577,7 +451,7 @@ export default function App() {
 
       {/* Main Workspace Body */}
       <main id="main-content" className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 relative z-10">
-        
+
         {/* Dynamic Alerts Banner */}
         <AnimatePresence>
           {alertNotification && (
@@ -598,7 +472,7 @@ export default function App() {
         {/* Milestone congrats banner */}
         <AnimatePresence>
           {congratsBadge && (
-            <motion.div 
+            <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
@@ -654,6 +528,7 @@ export default function App() {
                 <div className="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start pt-2">
                   <a
                     href="#get-started"
+                    onClick={() => setAuthMode("register")}
                     className="px-6 py-3 bg-emerald-400 hover:bg-emerald-300 text-emerald-950 font-display font-extrabold rounded-xl text-sm transition-all shadow-lg shadow-emerald-500/20 active:scale-95 flex items-center justify-center gap-2"
                   >
                     Start tracking free <ArrowRight className="w-4 h-4" aria-hidden="true" />
@@ -668,7 +543,7 @@ export default function App() {
                 <div className="flex items-center gap-5 justify-center lg:justify-start pt-3 text-[11px] text-slate-500">
                   <span className="flex items-center gap-1.5"><ShieldCheck className="w-4 h-4 text-emerald-400" aria-hidden="true" /> Privacy-first</span>
                   <span className="flex items-center gap-1.5"><Cpu className="w-4 h-4 text-emerald-400" aria-hidden="true" /> Gemini AI</span>
-                  <span className="flex items-center gap-1.5"><Globe className="w-4 h-4 text-emerald-400" aria-hidden="true" /> Cloud synced</span>
+                  <span className="flex items-center gap-1.5"><Globe className="w-4 h-4 text-emerald-400" aria-hidden="true" /> Local-first storage</span>
                 </div>
               </motion.div>
 
@@ -793,7 +668,7 @@ export default function App() {
                   {
                     icon: <BarChart3 className="w-6 h-6 text-teal-400" aria-hidden="true" />,
                     title: "Carbon Audit Ledger",
-                    body: "An immutable, real-time history of every saving, securely synced to the cloud.",
+                    body: "A real-time history of every saving, stored in your own private local database.",
                   },
                 ].map((f) => (
                   <div key={f.title} className="glass rounded-2xl p-6 hover:border-emerald-500/25 transition-all group">
@@ -838,16 +713,17 @@ export default function App() {
             <section id="get-started" className="grid lg:grid-cols-2 gap-8 items-center scroll-mt-24">
               <div className="space-y-5 text-center lg:text-left">
                 <h3 className="font-display font-extrabold text-2xl md:text-3xl text-white tracking-tight">
-                  Ready to start? Create your free account
+                  {authMode === "register" ? "Ready to start? Create your free account" : "Welcome back"}
                 </h3>
                 <p className="text-sm text-slate-400 leading-relaxed max-w-md mx-auto lg:mx-0">
-                  Your progress, achievements, and carbon ledger are saved securely to Google Cloud
-                  Firestore so you can pick up right where you left off, on any device.
+                  Your progress, achievements, and carbon ledger are saved to a private
+                  local database on the server, secured behind your own password — so you can
+                  pick up right where you left off.
                 </p>
                 <ul className="space-y-2.5 text-sm text-slate-300 max-w-md mx-auto lg:mx-0 text-left">
                   {[
                     "Personalized AI coaching from day one",
-                    "Real-time cloud sync across devices",
+                    "Simple, secure email + password login",
                     "Gamified streaks, badges, and leaderboard",
                   ].map((item) => (
                     <li key={item} className="flex items-center gap-2.5">
@@ -861,24 +737,28 @@ export default function App() {
               </div>
 
               <div className="max-w-md w-full mx-auto space-y-5">
-                <form onSubmit={(e) => {
-                  e.preventDefault();
-                  handleQuickCredentialSync(authName, authEmail, authAvatar);
-                }} className="glass rounded-2xl p-6 space-y-4 shadow-2xl">
-                  <h3 className="font-display font-bold text-white text-base">Create your eco account</h3>
+                <form
+                  onSubmit={authMode === "register" ? handleRegister : handleLogin}
+                  className="glass rounded-2xl p-6 space-y-4 shadow-2xl"
+                >
+                  <h3 className="font-display font-bold text-white text-base">
+                    {authMode === "register" ? "Create your eco account" : "Sign in to your account"}
+                  </h3>
 
-                  <div className="space-y-1">
-                    <label htmlFor="auth-name" className="text-[11px] font-mono uppercase text-slate-400 font-semibold block">Full Name</label>
-                    <input
-                      id="auth-name"
-                      type="text"
-                      required
-                      value={authName}
-                      onChange={(e) => setAuthName(e.target.value)}
-                      placeholder="e.g. Ashfaque Rifaye"
-                      className="w-full px-3.5 py-2.5 bg-slate-950/60 border border-white/10 rounded-xl text-slate-200 text-xs focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 focus:outline-none transition-all placeholder:text-slate-600"
-                    />
-                  </div>
+                  {authMode === "register" && (
+                    <div className="space-y-1">
+                      <label htmlFor="auth-name" className="text-[11px] font-mono uppercase text-slate-400 font-semibold block">Full Name</label>
+                      <input
+                        id="auth-name"
+                        type="text"
+                        required
+                        value={authName}
+                        onChange={(e) => setAuthName(e.target.value)}
+                        placeholder="e.g. Ashfaque Rifaye"
+                        className="w-full px-3.5 py-2.5 bg-slate-950/60 border border-white/10 rounded-xl text-slate-200 text-xs focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 focus:outline-none transition-all placeholder:text-slate-600"
+                      />
+                    </div>
+                  )}
 
                   <div className="space-y-1">
                     <label htmlFor="auth-email" className="text-[11px] font-mono uppercase text-slate-400 font-semibold block">Email Address</label>
@@ -886,6 +766,7 @@ export default function App() {
                       id="auth-email"
                       type="email"
                       required
+                      autoComplete="email"
                       value={authEmail}
                       onChange={(e) => setAuthEmail(e.target.value)}
                       placeholder="e.g. user@example.com"
@@ -893,40 +774,65 @@ export default function App() {
                     />
                   </div>
 
-                  {/* Avatar select */}
-                  <div className="space-y-2">
-                    <span className="text-[11px] font-mono uppercase text-slate-400 font-semibold block">Choose your avatar</span>
-                    <div className="grid grid-cols-4 gap-2">
-                      {[
-                        { key: "sprout", label: "Sprout", icon: <Sprout className="w-4 h-4 text-emerald-400" aria-hidden="true" /> },
-                        { key: "globe", label: "Globe", icon: <Globe className="w-4 h-4 text-blue-400" aria-hidden="true" /> },
-                        { key: "leaf", label: "Leaf", icon: <Leaf className="w-4 h-4 text-teal-400" aria-hidden="true" /> },
-                        { key: "bike", label: "Cycle", icon: <Bike className="w-4 h-4 text-amber-400" aria-hidden="true" /> }
-                      ].map((av) => (
-                        <button
-                          key={av.key}
-                          type="button"
-                          aria-pressed={authAvatar === av.key}
-                          aria-label={`Select ${av.label} avatar`}
-                          onClick={() => setAuthAvatar(av.key as any)}
-                          className={`p-2.5 flex flex-col items-center justify-center border rounded-xl gap-1.5 transition-all cursor-pointer ${
-                            authAvatar === av.key 
-                              ? "bg-slate-800 border-emerald-500 shadow-md text-white" 
-                              : "bg-slate-950/40 border-white/10 text-slate-400 hover:bg-slate-900 hover:text-slate-200"
-                          }`}
-                        >
-                          {av.icon}
-                          <span className="text-[9px] font-medium block">{av.label}</span>
-                        </button>
-                      ))}
-                    </div>
+                  <div className="space-y-1">
+                    <label htmlFor="auth-password" className="text-[11px] font-mono uppercase text-slate-400 font-semibold block">Password</label>
+                    <input
+                      id="auth-password"
+                      type="password"
+                      required
+                      minLength={authMode === "register" ? 8 : undefined}
+                      autoComplete={authMode === "register" ? "new-password" : "current-password"}
+                      value={authPassword}
+                      onChange={(e) => setAuthPassword(e.target.value)}
+                      placeholder={authMode === "register" ? "At least 8 characters" : "Your password"}
+                      className="w-full px-3.5 py-2.5 bg-slate-950/60 border border-white/10 rounded-xl text-slate-200 text-xs focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 focus:outline-none transition-all placeholder:text-slate-600"
+                    />
                   </div>
+
+                  {/* Avatar select (registration only) */}
+                  {authMode === "register" && (
+                    <div className="space-y-2">
+                      <span className="text-[11px] font-mono uppercase text-slate-400 font-semibold block">Choose your avatar</span>
+                      <div className="grid grid-cols-4 gap-2">
+                        {[
+                          { key: "sprout", label: "Sprout", icon: <Sprout className="w-4 h-4 text-emerald-400" aria-hidden="true" /> },
+                          { key: "globe", label: "Globe", icon: <Globe className="w-4 h-4 text-blue-400" aria-hidden="true" /> },
+                          { key: "leaf", label: "Leaf", icon: <Leaf className="w-4 h-4 text-teal-400" aria-hidden="true" /> },
+                          { key: "bike", label: "Cycle", icon: <Bike className="w-4 h-4 text-amber-400" aria-hidden="true" /> }
+                        ].map((av) => (
+                          <button
+                            key={av.key}
+                            type="button"
+                            aria-pressed={authAvatar === av.key}
+                            aria-label={`Select ${av.label} avatar`}
+                            onClick={() => setAuthAvatar(av.key as any)}
+                            className={`p-2.5 flex flex-col items-center justify-center border rounded-xl gap-1.5 transition-all cursor-pointer ${
+                              authAvatar === av.key
+                                ? "bg-slate-800 border-emerald-500 shadow-md text-white"
+                                : "bg-slate-950/40 border-white/10 text-slate-400 hover:bg-slate-900 hover:text-slate-200"
+                            }`}
+                          >
+                            {av.icon}
+                            <span className="text-[9px] font-medium block">{av.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Inline auth error */}
+                  {authError && (
+                    <p role="alert" className="text-[11px] text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2 flex items-center gap-2">
+                      <ShieldAlert className="w-3.5 h-3.5 shrink-0" aria-hidden="true" /> {authError}
+                    </p>
+                  )}
 
                   <button
                     type="submit"
-                    className="w-full py-3 bg-emerald-400 hover:bg-emerald-300 text-emerald-950 font-display font-extrabold rounded-xl text-xs transition-all shadow-lg shadow-emerald-500/15 cursor-pointer flex items-center justify-center gap-2 mt-2"
+                    disabled={loadingSession}
+                    className="w-full py-3 bg-emerald-400 hover:bg-emerald-300 disabled:opacity-60 disabled:cursor-not-allowed text-emerald-950 font-display font-extrabold rounded-xl text-xs transition-all shadow-lg shadow-emerald-500/15 cursor-pointer flex items-center justify-center gap-2 mt-2"
                   >
-                    Create & connect securely <ArrowRight className="w-4 h-4" aria-hidden="true" />
+                    {authMode === "register" ? "Create account" : "Sign in"} <ArrowRight className="w-4 h-4" aria-hidden="true" />
                   </button>
 
                   <div className="flex items-center gap-3 py-0.5">
@@ -937,15 +843,17 @@ export default function App() {
 
                   <button
                     type="button"
-                    onClick={handleGoogleSignIn}
+                    onClick={() => { setAuthError(""); setAuthMode(authMode === "register" ? "login" : "register"); }}
                     className="w-full py-3 bg-white/5 border border-white/10 hover:bg-white/10 text-slate-200 font-display font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
                   >
-                    <LogIn className="w-4 h-4 shrink-0 text-emerald-400" aria-hidden="true" /> Continue with Google
+                    {authMode === "register"
+                      ? "Already have an account? Log in"
+                      : "New here? Create an account"}
                   </button>
                 </form>
                 <p className="text-[10px] text-slate-500 text-center flex items-center justify-center gap-1.5">
                   <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" aria-hidden="true" />
-                  Secured by Firebase Auth · Zero-trust Firestore rules
+                  Passwords hashed with scrypt · Private local SQLite storage
                 </p>
               </div>
             </section>
@@ -955,10 +863,10 @@ export default function App() {
         {/* Dashboard Panels */}
         {userProfile && (
           <div className="space-y-8">
-            
+
             {/* Quick Metrics stats grid */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              
+
               {/* Carbon saved */}
               <div className="glass rounded-2xl p-5 border-l-4 border-l-brand-500 relative overflow-hidden">
                 <span className="text-xs text-slate-400 uppercase font-mono block mb-1">Total Carbon Saved</span>
@@ -1073,12 +981,12 @@ export default function App() {
                 <div className="flex items-center gap-2.5">
                   <Globe className="w-5 h-5 text-blue-400 shrink-0" />
                   <div className="text-left">
-                    <p className="text-white font-bold">Google Cloud Ledger Active</p>
-                    <p className="text-slate-400 text-[11px] mt-0.5">Persisted securely for synchronized core user: <span className="font-mono text-blue-400 font-semibold">{userProfile?.userId}</span></p>
+                    <p className="text-white font-bold">Local Carbon Ledger Active</p>
+                    <p className="text-slate-400 text-[11px] mt-0.5">Stored privately for account: <span className="font-mono text-blue-400 font-semibold">{userProfile?.email}</span></p>
                   </div>
                 </div>
                 <div className="bg-slate-900/80 border border-white/5 py-1 px-3.5 rounded-full flex gap-3 text-[10px] font-mono text-slate-500 shrink-0">
-                  <span>STATUS: <span className="text-emerald-400 font-bold">SNAP_READY</span></span>
+                  <span>STATUS: <span className="text-emerald-400 font-bold">READY</span></span>
                   <span>•</span>
                   <span>LEDGER: <span className="text-blue-400 font-bold">ACTIVE</span></span>
                 </div>
@@ -1089,17 +997,17 @@ export default function App() {
             {activeTab === "dashboard" && (
               <div className="space-y-8 animate-fadeIn">
                 {/* Active telemetries device simulator */}
-                <DeviceSimulator 
+                <DeviceSimulator
                   onLogEmission={logCarbonSavingActivity}
                   smartConnected={userProfile.smartMeterConnected}
                   transportConnected={userProfile.transportTrackerConnected}
-                  onToggleSmart={(val) => setUserProfile({ ...userProfile, smartMeterConnected: val })}
-                  onToggleTransport={(val) => setUserProfile({ ...userProfile, transportTrackerConnected: val })}
+                  onToggleSmart={(val) => updateToggle("smartMeterConnected", val)}
+                  onToggleTransport={(val) => updateToggle("transportTrackerConnected", val)}
                 />
 
                 {/* Daily Challenges action panels */}
                 <div className="glass rounded-2xl p-6 space-y-6">
-                  
+
                   {/* Category toggles */}
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div>
@@ -1116,8 +1024,8 @@ export default function App() {
                             type="button"
                             onClick={() => setActiveCategory(cat)}
                             className={`px-3 py-1.5 rounded-lg text-xs font-display font-bold transition-all ${
-                              activeCategory === cat 
-                                ? "bg-emerald-400 text-emerald-950 font-extrabold" 
+                              activeCategory === cat
+                                ? "bg-emerald-400 text-emerald-950 font-extrabold"
                                 : "text-slate-300 hover:text-white"
                             }`}
                           >
@@ -1142,8 +1050,8 @@ export default function App() {
                             <div className="flex justify-between items-start mb-2">
                               <span>{renderCategoryIcon(challenge.category)}</span>
                               <span className={`text-[10px] px-2.5 py-0.5 rounded font-mono font-bold uppercase ${
-                                challenge.difficulty === "Easy" 
-                                  ? "bg-emerald-950/80 text-emerald-300 border border-emerald-500/10" 
+                                challenge.difficulty === "Easy"
+                                  ? "bg-emerald-950/80 text-emerald-300 border border-emerald-500/10"
                                   : challenge.difficulty === "Medium"
                                   ? "bg-amber-950/80 text-amber-300 border border-amber-500/10"
                                   : "bg-red-950/80 text-red-300 border border-red-500/10"
@@ -1188,7 +1096,7 @@ export default function App() {
                   {/* Interactive Custom offset form */}
                   <AnimatePresence>
                     {isCustomFormOpen && (
-                      <motion.form 
+                      <motion.form
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: "auto" }}
                         exit={{ opacity: 0, height: 0 }}
@@ -1196,7 +1104,7 @@ export default function App() {
                         className="bg-white/5 p-5 rounded-2xl border border-white/15 space-y-4 text-xs backdrop-blur-xl"
                       >
                         <h4 className="font-display font-bold text-white text-sm">Register Custom Eco Contribution</h4>
-                        
+
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                           <div>
                             <label className="text-slate-300 block mb-1">Action Description</label>
@@ -1337,7 +1245,7 @@ export default function App() {
               <div className="space-y-6 animate-fadeIn max-w-4xl mx-auto text-left col-span-1">
                 <div className="glass rounded-2xl p-6 border border-white/5 relative overflow-hidden">
                   <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/5 rounded-full blur-3xl pointer-events-none"></div>
-                  
+
                   <div className="flex items-center gap-3 pb-4 border-b border-white/5 mb-6">
                     <div className="p-2.5 bg-purple-500/15 rounded-xl border border-purple-500/20">
                       <Sparkles className="w-5 h-5 text-purple-400 animate-pulse" />
@@ -1348,7 +1256,7 @@ export default function App() {
                     </div>
                   </div>
 
-                  <AiInsights 
+                  <AiInsights
                     userProfile={userProfile}
                     recentLogs={emissionsLogs}
                     simulatedSensors={simulatedSensors}
@@ -1376,10 +1284,10 @@ export default function App() {
             {/* LEADERBOARD STANDINGS TAB */}
             {activeTab === "leaderboard" && (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-fadeIn max-w-5xl mx-auto text-left">
-                
+
                 {/* Standings list */}
                 <div className="space-y-4">
-                  <CommunityLeaderboard 
+                  <CommunityLeaderboard
                     currentUserId={userProfile.userId}
                     leaderboard={leaderboard}
                     userProfile={userProfile}
@@ -1404,8 +1312,8 @@ export default function App() {
                         <div
                           key={ms.id}
                           className={`flex items-center gap-3 p-3.5 rounded-xl border transition-all ${
-                            ms.unlocked 
-                              ? "bg-brand-500/10 border-brand-500/35 text-white shadow-lg shadow-brand-500/5" 
+                            ms.unlocked
+                              ? "bg-brand-500/10 border-brand-500/35 text-white shadow-lg shadow-brand-500/5"
                               : "bg-slate-900/40 border-slate-900 text-slate-500"
                           }`}
                         >
@@ -1436,7 +1344,7 @@ export default function App() {
       <footer className="border-t border-slate-900 py-6 bg-slate-950 mt-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center sm:text-left flex flex-col sm:flex-row justify-between items-center gap-4 text-xs text-slate-500">
           <div>
-            <p>© 2026 CarbonSync Corporation. Google Cloud Zero-Trust Integrity Protected.</p>
+            <p>© 2026 CarbonSync. Local-first — your account data stays in the app's own database.</p>
             <p className="text-[10px] text-slate-600 mt-1">Simulated IoT meters operate on dynamic offset margins compared against standard petrol equivalent loads.</p>
           </div>
           <div className="flex gap-4">
@@ -1444,7 +1352,7 @@ export default function App() {
             <span>•</span>
             <a href="#ai_coaching_widget" className="hover:text-slate-300 transition-all font-mono">Gemini Insights</a>
             <span>•</span>
-            <span className="text-[9px] uppercase font-mono font-bold text-slate-600 bg-slate-900/30 px-2 py-0.5 rounded border border-slate-900">UTC System Time: 2026-06-13</span>
+            <span className="text-[9px] uppercase font-mono font-bold text-slate-600 bg-slate-900/30 px-2 py-0.5 rounded border border-slate-900">UTC System Time: 2026-06-19</span>
           </div>
         </div>
       </footer>
