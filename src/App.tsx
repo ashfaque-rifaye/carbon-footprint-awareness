@@ -199,7 +199,9 @@ export default function App() {
   // Session logout
   const handleLogout = async () => {
     try {
-      await apiFetch("/api/auth/logout", { method: "POST" });
+      // Send an explicit empty body so a Content-Length header is always set
+      // (some proxies reject bodyless POSTs with HTTP 411).
+      await apiFetch("/api/auth/logout", { method: "POST", body: "{}" });
     } catch (err) {
       console.error("Logout error:", err);
     }
