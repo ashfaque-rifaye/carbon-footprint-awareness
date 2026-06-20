@@ -1,5 +1,8 @@
 # 🌱 CarbonSync — Your Personal Carbon Coach
 
+[![CI](https://github.com/ashfaque-rifaye/carbon-footprint-awareness/actions/workflows/ci.yml/badge.svg)](https://github.com/ashfaque-rifaye/carbon-footprint-awareness/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-emerald.svg)](LICENSE)
+
 **A personalized carbon coach that finds the biggest emission drivers in a person's
 life and gives the next best action, ranked by impact and effort.**
 
