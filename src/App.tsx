@@ -1,16 +1,14 @@
 import React, { useState, useEffect } from "react";
 import {
   Sprout, Globe, Zap, Compass, Flame, Trophy, TrendingDown, Plus,
-  HelpCircle, Trash2, LogIn, LogOut, Check, ArrowRight, Share2, Award, ShieldAlert, Bike, Leaf,
+  Trash2, LogIn, LogOut, Check, ArrowRight, Award, ShieldAlert, Bike, Leaf,
   LayoutDashboard, History, Sparkles, Bot, MessageSquare, BarChart3, ShieldCheck, Cpu, Target
 } from "lucide-react";
-import { motion, AnimatePresence } from "motion/react";
-
 import {
-  UserProfile, EmissionsLog, Challenge, LeaderboardEntry, Milestone,
+  UserProfile, EmissionsLog, LeaderboardEntry, Milestone,
   STATIC_CHALLENGES, STATIC_MILESTONES
 } from "./types";
-import { treesEquivalent, toDateKey } from "./lib/carbon";
+import { treesEquivalent } from "./lib/carbon";
 
 import DeviceSimulator from "./components/DeviceSimulator";
 import CommunityLeaderboard from "./components/CommunityLeaderboard";
@@ -76,9 +74,6 @@ export default function App() {
     meterSaving: 0.0,
     trackerMiles: 0.0,
   });
-
-  // Today marker string (YYYY-MM-DD)
-  const todayStr = toDateKey();
 
   // 1. Restore any existing session on first load; otherwise show the landing page.
   useEffect(() => {
@@ -320,7 +315,7 @@ export default function App() {
   };
 
   // Trigger social mock support cheer interactions
-  const handleTriggerCheer = (targetUserId: string, targetName: string) => {
+  const handleTriggerCheer = (_targetUserId: string, targetName: string) => {
     setAlertNotification(`💖 You sent a solar-powered Eco Cheer to ${targetName}!`);
     setTimeout(() => setAlertNotification(""), 3500);
   };
@@ -461,54 +456,35 @@ export default function App() {
       <main id="main-content" className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 relative z-10">
 
         {/* Dynamic Alerts Banner */}
-        <AnimatePresence>
-          {alertNotification && (
-            <motion.div
-              role="status"
-              aria-live="polite"
-              initial={{ opacity: 0, height: 0, y: -10 }}
-              animate={{ opacity: 1, height: "auto", y: 0 }}
-              exit={{ opacity: 0, height: 0 }}
-              className="bg-brand-500/10 border border-brand-500/30 text-brand-400 text-xs py-3 px-4 rounded-xl flex items-center gap-2.5"
-            >
-              <Check className="w-4 h-4 shrink-0 text-brand-500" />
-              <span>{alertNotification}</span>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {alertNotification && (
+          <div
+            role="status"
+            aria-live="polite"
+            className="bg-brand-500/10 border border-brand-500/30 text-brand-400 text-xs py-3 px-4 rounded-xl flex items-center gap-2.5 animate-fadeIn"
+          >
+            <Check className="w-4 h-4 shrink-0 text-brand-500" />
+            <span>{alertNotification}</span>
+          </div>
+        )}
 
         {/* Milestone congrats banner */}
-        <AnimatePresence>
-          {congratsBadge && (
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="glass-accent rounded-2xl p-6 text-center border bg-brand-500/10 border-brand-500 relative overflow-hidden"
-            >
-              <div className="absolute inset-0 bg-brand-500/5 animate-pulse"></div>
-              <Award className="w-12 h-12 text-amber-400 mx-auto animate-bounce mb-3" />
-              <h2 className="font-display font-extrabold text-2xl text-white tracking-tight">Milestone Unlocked!</h2>
-              <p className="text-sm text-brand-400 font-semibold mb-1">{congratsBadge}</p>
-              <p className="text-xs text-slate-400 max-w-md mx-auto">Congratulations! Your continuous ecological tracking helps reduce real carbon footprint offsets daily.</p>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {congratsBadge && (
+          <div className="glass-accent rounded-2xl p-6 text-center border bg-brand-500/10 border-brand-500 relative overflow-hidden animate-fade-in-scale">
+            <div className="absolute inset-0 bg-brand-500/5 animate-pulse"></div>
+            <Award className="w-12 h-12 text-amber-400 mx-auto animate-bounce mb-3" />
+            <h2 className="font-display font-extrabold text-2xl text-white tracking-tight">Milestone Unlocked!</h2>
+            <p className="text-sm text-brand-400 font-semibold mb-1">{congratsBadge}</p>
+            <p className="text-xs text-slate-400 max-w-md mx-auto">Congratulations! Your continuous ecological tracking helps reduce real carbon footprint offsets daily.</p>
+          </div>
+        )}
 
         {/* Floating XP Point notifications */}
-        <AnimatePresence>
-          {floatingPoints && (
-            <motion.div
-              initial={{ opacity: 0, y: 20, scale: 0.8 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="fixed bottom-8 right-8 z-50 bg-amber-500 text-slate-950 font-display font-extrabold px-5 py-3 rounded-2xl shadow-xl flex items-center gap-2"
-            >
-              <Trophy className="w-5 h-5 animate-spin" />
-              <span>+{floatingPoints} XP Earned!</span>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {floatingPoints && (
+          <div className="fixed bottom-8 right-8 z-50 bg-amber-500 text-slate-950 font-display font-extrabold px-5 py-3 rounded-2xl shadow-xl flex items-center gap-2 animate-fade-in-up">
+            <Trophy className="w-5 h-5 animate-spin" />
+            <span>+{floatingPoints} XP Earned!</span>
+          </div>
+        )}
 
         {/* Initial session-restore loading state (prevents a blank screen) */}
         {loadingSession && (
@@ -524,12 +500,7 @@ export default function App() {
 
             {/* HERO */}
             <section className="grid lg:grid-cols-2 gap-10 items-center pt-4 md:pt-8">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5 }}
-                className="space-y-6 text-center lg:text-left"
-              >
+              <div className="space-y-6 text-center lg:text-left animate-fade-in-up">
                 <span className="inline-flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 text-xs font-mono font-semibold px-3.5 py-1.5 rounded-full">
                   <Sparkles className="w-3.5 h-3.5" aria-hidden="true" /> AI-Powered Carbon Coach
                 </span>
@@ -561,15 +532,10 @@ export default function App() {
                   <span className="flex items-center gap-1.5"><Cpu className="w-4 h-4 text-emerald-400" aria-hidden="true" /> Gemini AI</span>
                   <span className="flex items-center gap-1.5"><Globe className="w-4 h-4 text-emerald-400" aria-hidden="true" /> Local-first storage</span>
                 </div>
-              </motion.div>
+              </div>
 
               {/* Hero visual: impact stats card */}
-              <motion.div
-                initial={{ opacity: 0, scale: 0.96 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.5, delay: 0.1 }}
-                className="glass rounded-3xl p-6 md:p-8 relative overflow-hidden"
-              >
+              <div className="glass rounded-3xl p-6 md:p-8 relative overflow-hidden animate-fade-in-scale">
                 <div className="absolute -top-10 -right-10 w-40 h-40 bg-emerald-500/20 rounded-full blur-3xl pointer-events-none" aria-hidden="true"></div>
                 <div className="flex items-center justify-between mb-6">
                   <div className="flex items-center gap-2.5">
@@ -606,7 +572,7 @@ export default function App() {
                     midday solar hours could save you ~1.2 kg CO₂ this week.
                   </p>
                 </div>
-              </motion.div>
+              </div>
             </section>
 
             {/* IMPACT BAR */}
@@ -1094,9 +1060,10 @@ export default function App() {
                             <button
                               type="button"
                               onClick={() => logCarbonSavingActivity(challenge.title, challenge.category, challenge.kgSaved, "manual")}
-                              className="px-3.5 py-1.5 bg-emerald-400/10 text-emerald-300 hover:bg-emerald-400 hover:text-emerald-950 rounded-lg font-display font-extrabold transition-all text-xs cursor-pointer active:scale-95 flex items-center gap-1"
+                              aria-label={`Log action: ${challenge.title}, saves ${challenge.kgSaved} kg CO2`}
+                              className="px-3.5 py-1.5 bg-emerald-400/10 text-emerald-300 hover:bg-emerald-400 hover:text-emerald-950 rounded-lg font-display font-extrabold transition-all text-xs cursor-pointer active:scale-95 flex items-center gap-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60"
                             >
-                              Log Action <Check className="w-3 h-3 ml-0.5" />
+                              Log Action <Check className="w-3 h-3 ml-0.5" aria-hidden="true" />
                             </button>
                           </div>
                         </div>
@@ -1117,15 +1084,11 @@ export default function App() {
                   </div>
 
                   {/* Interactive Custom offset form */}
-                  <AnimatePresence>
-                    {isCustomFormOpen && (
-                      <motion.form
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: "auto" }}
-                        exit={{ opacity: 0, height: 0 }}
-                        onSubmit={handleCreateCustomAction}
-                        className="bg-white/5 p-5 rounded-2xl border border-white/15 space-y-4 text-xs backdrop-blur-xl"
-                      >
+                  {isCustomFormOpen && (
+                    <form
+                      onSubmit={handleCreateCustomAction}
+                      className="bg-white/5 p-5 rounded-2xl border border-white/15 space-y-4 text-xs backdrop-blur-xl animate-fadeIn"
+                    >
                         <h4 className="font-display font-bold text-white text-sm">Register Custom Eco Contribution</h4>
 
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -1184,9 +1147,8 @@ export default function App() {
                             Commit Audit Log
                           </button>
                         </div>
-                      </motion.form>
-                    )}
-                  </AnimatePresence>
+                    </form>
+                  )}
 
                 </div>
               </div>
@@ -1314,7 +1276,6 @@ export default function App() {
                     currentUserId={userProfile.userId}
                     leaderboard={leaderboard}
                     userProfile={userProfile}
-                    milestones={milestones}
                     onTriggerCheer={handleTriggerCheer}
                   />
                 </div>

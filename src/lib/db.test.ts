@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { createStore, EmailTakenError, toProfile, toLog, type Store } from "./db";
+import { createStore, EmailTakenError, toProfile, type Store } from "./db";
 import { hashPassword, generateSessionToken } from "./auth";
 import type { EmissionsLog } from "../types";
 

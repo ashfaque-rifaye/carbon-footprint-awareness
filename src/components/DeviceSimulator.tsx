@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from "react";
-import { Zap, Compass, Car, Bike, Train, HelpCircle, Activity, Globe, RefreshCcw, Footprints } from "lucide-react";
-import { motion, AnimatePresence } from "motion/react";
+import { useState, useEffect } from "react";
+import { Zap, Compass, Car, Bike, Train, Activity, Globe, RefreshCcw, Footprints } from "lucide-react";
 import type { TransitMode } from "../types";
-import { calculateTransitSavings, smartMeterOffset, TRANSIT_MODE_OFFSET } from "../lib/carbon";
+import { calculateTransitSavings, smartMeterOffset } from "../lib/carbon";
 
 interface DeviceSimulatorProps {
   onLogEmission: (activity: string, category: "transport" | "energy" | "diet" | "waste", kg: number, source: "smart_meter" | "transport_tracker") => void;
@@ -23,7 +22,6 @@ export default function DeviceSimulator({
   const [currentLoad, setCurrentLoad] = useState<number>(1.8); // kW
   const [solarInput, setSolarInput] = useState<number>(0.2); // kW
   const [offsetSavings, setOffsetSavings] = useState<number>(0.0); // kgCO2
-  const [autoSaveActive, setAutoSaveActive] = useState<boolean>(false);
 
   // Transport Tracker state variables
   const [tripType, setTripType] = useState<string>("Commute to Hub");
@@ -38,11 +36,13 @@ export default function DeviceSimulator({
     setSimEstimatedSavings(calculateTransitSavings(distanceKm, transitMode));
   }, [distanceKm, transitMode]);
 
-  // Simulated Smart Meter active solar load tick (automated background telemetry)
+  // Simulated Smart Meter active solar load tick (automated background telemetry).
+  // Depends only on the connection flag and the (stable) log callback so the
+  // interval is created once per connect — not torn down and recreated on every
+  // tick when the load/solar readings change.
   useEffect(() => {
-    let interval: NodeJS.Timeout | null = null;
-    if (smartConnected) {
-      interval = setInterval(() => {
+    if (!smartConnected) return;
+    const interval = setInterval(() => {
         // Vary simulated solar generation and home loads randomly around natural targets
         const newSolar = parseFloat((Math.random() * 2.8 + 0.4).toFixed(2)); // High day solar
         const newLoad = parseFloat((Math.random() * 1.5 + 0.5).toFixed(2));
@@ -68,11 +68,8 @@ export default function DeviceSimulator({
           });
         }
       }, 5000); // Poll/tick every 5 seconds
-    }
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [smartConnected, currentLoad, solarInput, onLogEmission]);
+    return () => clearInterval(interval);
+  }, [smartConnected, onLogEmission]);
 
   // Handle transport simulation timeline runner
   const handleStartTransportSimulation = () => {
@@ -117,10 +114,13 @@ export default function DeviceSimulator({
             </div>
           </div>
           <button
+            type="button"
             onClick={() => onToggleSmart(!smartConnected)}
+            aria-pressed={smartConnected}
+            aria-label={smartConnected ? "Disconnect smart utility meter" : "Connect smart utility meter"}
             className={`px-4 py-1.5 rounded-full font-display font-medium text-xs transition-all ${
-              smartConnected 
-                ? "bg-brand-500/10 text-brand-500 border border-brand-500/40 hover:bg-brand-500/20" 
+              smartConnected
+                ? "bg-brand-500/10 text-brand-500 border border-brand-500/40 hover:bg-brand-500/20"
                 : "bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white"
             }`}
           >
@@ -130,11 +130,7 @@ export default function DeviceSimulator({
 
         {/* Meter Interface panels */}
         {smartConnected ? (
-          <motion.div 
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="space-y-6"
-          >
+          <div className="space-y-6 animate-fade-in-up">
             {/* Visual Solar and grid panel */}
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-slate-900/40 border border-slate-800/80 rounded-xl p-4 text-center">
@@ -172,9 +168,9 @@ export default function DeviceSimulator({
 
             <div className="flex gap-2 text-[10px] text-slate-500 items-start leading-relaxed">
               <Globe className="w-4 h-4 text-slate-400 flex-shrink-0 mt-0.5" />
-              <span>While active and solar output exceeds household demand, the simulator generates automated carbon offsets that push points directly to your Google Cloud database every 0.5 kg!</span>
+              <span>While active and solar output exceeds household demand, the simulator generates automated carbon offsets that are recorded in your activity ledger every 0.5 kg!</span>
             </div>
-          </motion.div>
+          </div>
         ) : (
           <div className="py-8 text-center text-slate-500">
             <p className="text-sm mb-2">Device currently disconnected.</p>
@@ -199,10 +195,13 @@ export default function DeviceSimulator({
             </div>
           </div>
           <button
+            type="button"
             onClick={() => onToggleTransport(!transportConnected)}
+            aria-pressed={transportConnected}
+            aria-label={transportConnected ? "Disconnect transport tracker" : "Connect transport tracker"}
             className={`px-4 py-1.5 rounded-full font-display font-medium text-xs transition-all ${
-              transportConnected 
-                ? "bg-blue-500/10 text-blue-400 border border-blue-500/40 hover:bg-blue-500/20" 
+              transportConnected
+                ? "bg-blue-500/10 text-blue-400 border border-blue-500/40 hover:bg-blue-500/20"
                 : "bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white"
             }`}
           >
@@ -212,11 +211,7 @@ export default function DeviceSimulator({
 
         {/* Transport interface */}
         {transportConnected ? (
-          <motion.div 
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="space-y-4"
-          >
+          <div className="space-y-4 animate-fade-in-up">
             {/* Form selections */}
             <div className="grid grid-cols-2 gap-3 text-xs">
               <div>
@@ -258,10 +253,11 @@ export default function DeviceSimulator({
                         key={mode}
                         type="button"
                         onClick={() => setTransitMode(mode)}
-                        title={mode.replace("_", " ")}
+                        aria-pressed={transitMode === mode}
+                        aria-label={`Transit mode: ${mode.replace("_", " ")}`}
                         className={`p-2 rounded-lg text-center border text-base transition-all flex items-center justify-center cursor-pointer ${
-                          transitMode === mode 
-                            ? "border-blue-500 bg-blue-500/20 scale-105" 
+                          transitMode === mode
+                            ? "border-blue-500 bg-blue-500/20 scale-105"
                             : "border-slate-800 bg-slate-900 hover:bg-slate-800"
                         }`}
                       >
@@ -318,28 +314,21 @@ export default function DeviceSimulator({
             </div>
 
             {/* Progress line for ongoing simulated GPS log */}
-            <AnimatePresence>
-              {simulationOngoing && (
-                <motion.div 
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="space-y-1.5"
-                >
-                  <div className="w-full bg-slate-900 rounded-full h-1">
-                    <div 
-                      className="bg-blue-400 h-1 rounded-full transition-all duration-200" 
-                      style={{ width: `${simProgress}%` }}
-                    ></div>
-                  </div>
-                  <div className="flex justify-between text-[10px] text-blue-400 font-mono">
-                    <span>TRACKING SATELLITE HANDSHAKE</span>
-                    <span>{simProgress}% COMPLETE</span>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </motion.div>
+            {simulationOngoing && (
+              <div className="space-y-1.5 animate-fadeIn">
+                <div className="w-full bg-slate-900 rounded-full h-1">
+                  <div
+                    className="bg-blue-400 h-1 rounded-full transition-all duration-200"
+                    style={{ width: `${simProgress}%` }}
+                  ></div>
+                </div>
+                <div className="flex justify-between text-[10px] text-blue-400 font-mono">
+                  <span>TRACKING SATELLITE HANDSHAKE</span>
+                  <span>{simProgress}% COMPLETE</span>
+                </div>
+              </div>
+            )}
+          </div>
         ) : (
           <div className="py-8 text-center text-slate-500">
             <p className="text-sm mb-2">Smart GPS device currently inactive.</p>

@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Bot, Send, Loader2, Sparkles, User as UserIcon, AlertCircle } from "lucide-react";
-import { motion, AnimatePresence } from "motion/react";
 import type { UserProfile } from "../types";
 
 interface ChatMessage {
@@ -196,27 +195,20 @@ export default function EcoAssistant({ userProfile, variant = "full" }: EcoAssis
       </div>
 
       {/* Starter prompts (only before the user has asked anything) */}
-      <AnimatePresence>
-        {messages.length <= 1 && !loading && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0, height: 0 }}
-            className="flex flex-wrap gap-1.5 pt-3"
-          >
-            {STARTER_PROMPTS.map((p) => (
-              <button
-                key={p}
-                type="button"
-                onClick={() => sendMessage(p)}
-                className="text-[10.5px] text-emerald-200 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 rounded-full px-3 py-1.5 transition-all cursor-pointer"
-              >
-                {p}
-              </button>
-            ))}
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {messages.length <= 1 && !loading && (
+        <div className="flex flex-wrap gap-1.5 pt-3 animate-fadeIn">
+          {STARTER_PROMPTS.map((p) => (
+            <button
+              key={p}
+              type="button"
+              onClick={() => sendMessage(p)}
+              className="text-[10.5px] text-emerald-200 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 rounded-full px-3 py-1.5 transition-all cursor-pointer"
+            >
+              {p}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Composer */}
       <form

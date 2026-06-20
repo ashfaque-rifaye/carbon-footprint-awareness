@@ -176,9 +176,12 @@ curl -s localhost:3000/api/insights -H "Content-Type: application/json" -d '{
   session cookie; every data endpoint is session-guarded and all queries are
   owner-scoped with parameterized SQL (no injection); model output is parsed
   defensively and never executed.
-- **Accessibility:** skip link, semantic landmarks, `aria-label`s on icon buttons,
-  `role="tab"`/`aria-selected` navigation, `aria-live` status regions, labeled
-  inputs. (Full WCAG sign-off needs manual assistive-tech testing.)
+- **Accessibility:** skip link, semantic landmarks, real `<button>`s for every
+  action (no click-handlers on `div`s), `aria-label`s on icon buttons,
+  `aria-pressed` on toggles, `role="tab"`/`aria-selected` navigation, `aria-live`
+  status regions, labeled inputs, visible focus rings, and a
+  `prefers-reduced-motion` block that disables animation for users who opt out.
+  (Full WCAG sign-off needs manual assistive-tech testing.)
 
 ## 11. Future Improvements
 
@@ -190,7 +193,12 @@ curl -s localhost:3000/api/insights -H "Content-Type: application/json" -d '{
 
 ### Efficiency notes
 
-Vendor libraries are split into cacheable chunks (`manualChunks`), keeping the main
-bundle ~284 kB (dropping the Firebase SDK removed a ~460 kB vendor chunk). Logs
-sent to the model are capped (`MAX_RECENT_LOGS`); analytics run as O(n) passes over
-the activity log. SQLite reads are indexed and use prepared statements.
+The client JS payload is kept lean by carrying **zero heavy UI dependencies**:
+Firebase (~460 kB) and the animation library framer-motion (~140 kB) were both
+removed — entrance animations are now pure CSS, cutting roughly **a third** off the
+JavaScript bundle. React is split into a cacheable vendor chunk; `lucide-react`
+icons are tree-shaken. On the data side, the smart-meter telemetry interval is
+created once per connect (not re-subscribed on every tick), logs sent to the model
+are capped (`MAX_RECENT_LOGS`), analytics run as O(n) passes over the activity log,
+and SQLite reads are indexed and use prepared statements. The codebase compiles
+under TypeScript `strict` with `noUnusedLocals`/`noUnusedParameters` (no dead code).

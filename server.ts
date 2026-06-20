@@ -351,10 +351,10 @@ async function startServer() {
 
       const parsed = parseInsightsResponse(response.text);
       // If the model returns malformed output, degrade gracefully.
-      res.json(parsed ?? fallbackInsights(ctx.userProfile));
+      return res.json(parsed ?? fallbackInsights(ctx.userProfile));
     } catch (genError) {
       console.error("Gemini generation error:", genError);
-      res.json(fallbackInsights(ctx.userProfile));
+      return res.json(fallbackInsights(ctx.userProfile));
     }
   });
 
@@ -384,10 +384,10 @@ async function startServer() {
       if (!reply) {
         return res.json({ reply: fallbackChatReply(messages), source: "fallback" });
       }
-      res.json({ reply, source: "ai" });
+      return res.json({ reply, source: "ai" });
     } catch (chatError) {
       console.error("Gemini chat error:", chatError);
-      res.json({ reply: fallbackChatReply(messages), source: "fallback" });
+      return res.json({ reply: fallbackChatReply(messages), source: "fallback" });
     }
   });
 

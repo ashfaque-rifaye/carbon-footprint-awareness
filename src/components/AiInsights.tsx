@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Sparkles, Loader2, ArrowRight, CheckCircle2, AlertCircle, RefreshCw } from "lucide-react";
 import { UserProfile, EmissionsLog } from "../types";
-import { motion, AnimatePresence } from "motion/react";
+import { fallbackInsights } from "../lib/insights";
 
 interface SuggestedAction {
   id: string;
@@ -49,30 +49,25 @@ export default function AiInsights({
       });
 
       if (!response.ok) {
-        throw new Error("Unable to contact backend simulation insights broker.");
+        throw new Error("Insights request failed");
       }
 
       const data = await response.json();
       setInsightsHtml(data.insights || "");
       setSuggestedActions(data.actions || []);
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      setErrorMsg("Unable to retrieve customized smart insights yet. Using locally synthesized recommendations of carbon mitigation:");
-      
-      // Local highly detailed synthesized fallback
-      setInsightsHtml(`
-### Magnificent work, ${userProfile.name}!
-Your active carbon contribution is excellent. Here's your personalized diagnostic report:
-
-* **Solar Window Integration**: You can optimize dishwasher runs in off-peak slots to align energy peaks.
-* **Vampire Loads**: Power down your peripherals overnight. This can passively prevent up to 0.8 kg of daily emission leaks.
-* **Balanced Commute**: Consider replacing 5km of transit with an active walking simulator task to earn specialized milestones!
-      `);
-      setSuggestedActions([
-        { id: "fallback_appliance", text: "Unplug peripheral workspace chargers at night", savedKg: 1.1, cost: "Free" },
-        { id: "fallback_transit", text: "Commit to active walking for trips under 2 km", savedKg: 3.4, cost: "Free" },
-        { id: "fallback_diet", text: "Arrange one plant-based organic dinner meal", savedKg: 2.2, cost: "Low" }
-      ]);
+      // Reuse the shared deterministic engine so advice stays personalized even
+      // when the network/AI is unavailable (no duplicated fallback copy).
+      setErrorMsg("Couldn't reach the AI service — showing locally generated recommendations.");
+      const fb = fallbackInsights({
+        name: userProfile.name,
+        streakDays: userProfile.streakDays,
+        smartMeterConnected: userProfile.smartMeterConnected,
+        transportTrackerConnected: userProfile.transportTrackerConnected,
+      });
+      setInsightsHtml(fb.insights);
+      setSuggestedActions(fb.actions);
     } finally {
       setLoading(false);
     }
@@ -133,28 +128,17 @@ Your active carbon contribution is excellent. Here's your personalized diagnosti
         </button>
       </div>
 
-      <AnimatePresence mode="wait">
+      <div>
         {loading ? (
-          <motion.div
-            key="ai-loading"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="py-12 flex flex-col items-center justify-center text-center space-y-4"
-          >
+          <div className="py-12 flex flex-col items-center justify-center text-center space-y-4 animate-fadeIn">
             <Loader2 className="w-8 h-8 text-amber-500 animate-spin" />
             <div className="space-y-1">
-              <p className="font-display font-bold text-sm text-slate-200">Reading your telemetry & impact logs...</p>
+              <p className="font-display font-bold text-sm text-slate-200">Reading your telemetry &amp; impact logs...</p>
               <p className="text-xs text-slate-400 max-w-xs">Gemini is synthesizing customized optimization paths for your carbon footprint model.</p>
             </div>
-          </motion.div>
+          </div>
         ) : (
-          <motion.div
-            key="ai-content"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="space-y-6"
-          >
+          <div className="space-y-6 animate-fade-in-up">
             {/* Display error if fallback was activated */}
             {errorMsg && (
               <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-3 text-xs text-amber-400 flex items-start gap-2">
@@ -203,46 +187,49 @@ Your active carbon contribution is excellent. Here's your personalized diagnosti
                   {suggestedActions.map((action) => {
                     const isCompleted = completedSuggestIds.has(action.id);
                     return (
-                      <div
+                      <button
                         key={action.id}
-                        onClick={() => !isCompleted && handleExecuteAction(action)}
+                        type="button"
+                        disabled={isCompleted}
+                        onClick={() => handleExecuteAction(action)}
+                        aria-label={isCompleted ? `Claimed: ${action.text}` : `Claim task: ${action.text}, saves ${action.savedKg} kg CO2`}
                         className={`border rounded-xl p-3.5 flex flex-col justify-between text-left transition-all relative overflow-hidden ${
                           isCompleted
                             ? "bg-white/5 border-white/5 text-slate-500 cursor-default"
-                            : "bg-white/5 border border-white/10 hover:border-amber-500/40 hover:bg-white/10 cursor-pointer hover:shadow-lg hover:shadow-amber-500/5 active:scale-98"
+                            : "bg-white/5 border border-white/10 hover:border-amber-500/40 hover:bg-white/10 cursor-pointer hover:shadow-lg hover:shadow-amber-500/5 active:scale-98 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60"
                         }`}
                       >
                         {isCompleted && (
-                          <div className="absolute top-1.5 right-1.5 text-emerald-400">
-                            <CheckCircle2 className="w-4 h-4" />
-                          </div>
+                          <span className="absolute top-1.5 right-1.5 text-emerald-400">
+                            <CheckCircle2 className="w-4 h-4" aria-hidden="true" />
+                          </span>
                         )}
-                        <div>
-                          <p className={`text-xs font-bold ${isCompleted ? "text-slate-500" : "text-white"} leading-snug mb-1.5`}>
+                        <span className="block">
+                          <span className={`block text-xs font-bold ${isCompleted ? "text-slate-500" : "text-white"} leading-snug mb-1.5`}>
                             {action.text}
-                          </p>
-                          <div className="flex gap-2 items-center text-[10px] text-slate-400">
+                          </span>
+                          <span className="flex gap-2 items-center text-[10px] text-slate-400">
                             <span className="bg-slate-950/40 px-2 py-0.5 rounded border border-white/10 font-mono text-emerald-300">
                               -{action.savedKg} kg
                             </span>
                             <span className="text-amber-400 font-medium font-mono">Bounty: High</span>
-                          </div>
-                        </div>
+                          </span>
+                        </span>
 
                         {!isCompleted && (
-                          <div className="mt-3.5 flex items-center justify-end text-[10px] text-emerald-300 font-bold font-mono">
-                            Claim Task <ArrowRight className="w-3 h-3 ml-1" />
-                          </div>
+                          <span className="mt-3.5 flex items-center justify-end text-[10px] text-emerald-300 font-bold font-mono">
+                            Claim Task <ArrowRight className="w-3 h-3 ml-1" aria-hidden="true" />
+                          </span>
                         )}
-                      </div>
+                      </button>
                     );
                   })}
                 </div>
               </div>
             )}
-          </motion.div>
+          </div>
         )}
-      </AnimatePresence>
+      </div>
     </div>
   );
 }

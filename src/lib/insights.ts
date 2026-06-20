@@ -43,6 +43,13 @@ export interface InsightsRequest {
   simulatedSensors?: InsightsSensors;
 }
 
+/** A fully-resolved insights context (every field populated with a safe value). */
+export interface NormalizedInsightsContext {
+  userProfile: Required<InsightsContextProfile>;
+  recentLogs: unknown[];
+  simulatedSensors: Required<InsightsSensors>;
+}
+
 /** Cap how many recent logs we forward to the model to bound token usage. */
 export const MAX_RECENT_LOGS = 5;
 
@@ -64,7 +71,7 @@ function safeNumber(value: unknown): number {
  * Untrusted client input is bounded and type-checked before it is interpolated
  * into the model prompt.
  */
-export function normalizeInsightsRequest(body: unknown): Required<InsightsRequest> {
+export function normalizeInsightsRequest(body: unknown): NormalizedInsightsContext {
   const raw = (body ?? {}) as InsightsRequest;
   const profile = raw.userProfile ?? {};
   const sensors = raw.simulatedSensors ?? {};
@@ -95,7 +102,7 @@ export function normalizeInsightsRequest(body: unknown): Required<InsightsReques
  * explicit chain-of-thought instruction. CoT reasoning is performed INTERNALLY so
  * that the response stays a single clean JSON object (strict format compliance).
  */
-export function buildInsightsPrompt(ctx: Required<InsightsRequest>): string {
+export function buildInsightsPrompt(ctx: NormalizedInsightsContext): string {
   const { userProfile: p, recentLogs, simulatedSensors: s } = ctx;
 
   // Derive the user's biggest emission-savings driver and untapped categories so

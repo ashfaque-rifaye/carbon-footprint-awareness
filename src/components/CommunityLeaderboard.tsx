@@ -1,13 +1,11 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Users, Award, Share2, Sparkles, MessageSquare, Heart, Check, Copy, Trophy, Flame, Sprout, Globe, Bike, Zap, Leaf, ThumbsUp } from "lucide-react";
-import { LeaderboardEntry, UserProfile, Milestone } from "../types";
-import { motion, AnimatePresence } from "motion/react";
+import { LeaderboardEntry, UserProfile } from "../types";
 
 interface CommunityLeaderboardProps {
   currentUserId: string;
   leaderboard: LeaderboardEntry[];
   userProfile: UserProfile | null;
-  milestones: Milestone[];
   onTriggerCheer: (targetUserId: string, name: string) => void;
 }
 
@@ -15,7 +13,6 @@ export default function CommunityLeaderboard({
   currentUserId,
   leaderboard,
   userProfile,
-  milestones,
   onTriggerCheer,
 }: CommunityLeaderboardProps) {
   const [activeTab, setActiveTab] = useState<"leaderboard" | "share">("leaderboard");
@@ -111,15 +108,9 @@ Join me to reduce our emissions! @CarbonSync`;
         </div>
       </div>
 
-      <AnimatePresence mode="wait">
+      <div>
         {activeTab === "leaderboard" ? (
-          <motion.div
-            key="leaderboard-tab"
-            initial={{ opacity: 0, x: -10 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 10 }}
-            className="space-y-4"
-          >
+          <div className="space-y-4 animate-fadeIn">
             <div className="flex justify-between items-center text-xs text-slate-400 font-medium px-2">
               <span>Eco Competitor</span>
               <div className="flex gap-8 font-mono">
@@ -135,11 +126,11 @@ Join me to reduce our emissions! @CarbonSync`;
                 const renderRankBadge = (rankIdx: number) => {
                   switch (rankIdx) {
                     case 0:
-                      return <Trophy className="w-4 h-4 text-amber-400 mx-auto" title="1st Place" />;
+                      return <Trophy className="w-4 h-4 text-amber-400 mx-auto" aria-label="1st place" />;
                     case 1:
-                      return <Trophy className="w-4 h-4 text-slate-300 mx-auto" title="2nd Place" />;
+                      return <Trophy className="w-4 h-4 text-slate-300 mx-auto" aria-label="2nd place" />;
                     case 2:
-                      return <Trophy className="w-4 h-4 text-amber-600 mx-auto" title="3rd Place" />;
+                      return <Trophy className="w-4 h-4 text-amber-600 mx-auto" aria-label="3rd place" />;
                     default:
                       return <span className="font-mono text-xs text-slate-400">#{rankIdx + 1}</span>;
                   }
@@ -211,17 +202,11 @@ Join me to reduce our emissions! @CarbonSync`;
 
             <div className="flex items-center gap-2 text-[10px] text-slate-400 pt-2 border-t border-white/10">
               <Award className="w-4 h-4 text-amber-400 flex-shrink-0" />
-              <span>Real-time cloud leaderboard synchronizes with Google Cloud under strict Zero-Trust constraints. Track savings daily to secure your division rank!</span>
+              <span>Leaderboard standings update from the local activity ledger. Track savings daily to climb your division rank!</span>
             </div>
-          </motion.div>
+          </div>
         ) : (
-          <motion.div
-            key="share-tab"
-            initial={{ opacity: 0, x: 10 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -10 }}
-            className="space-y-6"
-          >
+          <div className="space-y-6 animate-fadeIn">
             {/* Social Share Engine Graphic card mockup */}
             {userProfile && (
               <div className="relative border border-white/10 bg-white/5 rounded-2xl p-4 overflow-hidden shadow-inner">
@@ -234,8 +219,8 @@ Join me to reduce our emissions! @CarbonSync`;
                       <Sparkles className="w-4 h-4" />
                     </span>
                     <div>
-                      <h4 className="text-xs font-display font-medium text-slate-300">Google Cloud Synced</h4>
-                      <p className="text-[10px] text-slate-400">Live Carbon Savings Passport</p>
+                      <h4 className="text-xs font-display font-medium text-slate-300">Carbon Savings Passport</h4>
+                      <p className="text-[10px] text-slate-400">Your shareable impact card</p>
                     </div>
                   </div>
                   <span className="bg-emerald-950/80 text-emerald-300 border border-emerald-500/20 text-[9px] font-mono font-bold px-2.5 py-1 rounded-full animate-pulse">
@@ -301,18 +286,11 @@ Join me to reduce our emissions! @CarbonSync`;
                 </div>
 
                 {/* Action Alert notification */}
-                <AnimatePresence>
-                  {sharingPlatform && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: 10 }}
-                      className="absolute inset-x-0 bottom-0 py-2.5 bg-emerald-500 text-emerald-950 font-bold text-[10px] text-center font-display tracking-wider"
-                    >
-                      SUCCESSFULLY EXPORTED TO {sharingPlatform.toUpperCase()}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                {sharingPlatform && (
+                  <div className="absolute inset-x-0 bottom-0 py-2.5 bg-emerald-500 text-emerald-950 font-bold text-[10px] text-center font-display tracking-wider animate-fade-in-up">
+                    SUCCESSFULLY EXPORTED TO {sharingPlatform.toUpperCase()}
+                  </div>
+                )}
               </div>
             )}
 
@@ -362,9 +340,9 @@ Join me to reduce our emissions! @CarbonSync`;
                 ))}
               </div>
             </div>
-          </motion.div>
+          </div>
         )}
-      </AnimatePresence>
+      </div>
     </div>
   );
 }
