@@ -3,6 +3,7 @@ build/
 dist/
 coverage/
 data/
+.claude/
 *.db
 *.db-shm
 *.db-wal

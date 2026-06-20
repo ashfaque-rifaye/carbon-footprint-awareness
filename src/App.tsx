@@ -37,7 +37,11 @@ function deriveMilestones(points: number, streakDays: number): Milestone[] {
 export default function App() {
   // Authentication & session variables
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  // `loadingSession` gates ONLY the initial "restore my session" check on first
+  // load. In-flight login/register submits use `authSubmitting` so the auth form
+  // stays mounted (and can show inline errors) instead of unmounting the page.
   const [loadingSession, setLoadingSession] = useState<boolean>(true);
+  const [authSubmitting, setAuthSubmitting] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<"dashboard" | "ledger" | "insights" | "assistant" | "leaderboard">("dashboard");
 
   // Auth form inputs
@@ -137,7 +141,7 @@ export default function App() {
       setAuthError("Enter your name, a valid email, and a password of at least 8 characters.");
       return;
     }
-    setLoadingSession(true);
+    setAuthSubmitting(true);
     try {
       const res = await apiFetch("/api/auth/register", {
         method: "POST",
@@ -148,20 +152,21 @@ export default function App() {
           avatar: authAvatar,
         }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         setAuthError(data.error || "Could not create your account.");
         return;
       }
-      applyProfile(data.profile);
-      await Promise.all([loadLogs(), loadLeaderboard()]);
       setAuthPassword("");
+      applyProfile(data.profile);
+      window.scrollTo({ top: 0 });
+      await Promise.all([loadLogs(), loadLeaderboard()]);
       setAlertNotification(`Welcome to CarbonSync, ${data.profile.name}! Your account is ready.`);
     } catch (err) {
       console.error(err);
       setAuthError("Network error. Please try again.");
     } finally {
-      setLoadingSession(false);
+      setAuthSubmitting(false);
     }
   };
 
@@ -173,26 +178,27 @@ export default function App() {
       setAuthError("Enter your email and password.");
       return;
     }
-    setLoadingSession(true);
+    setAuthSubmitting(true);
     try {
       const res = await apiFetch("/api/auth/login", {
         method: "POST",
         body: JSON.stringify({ email: authEmail.trim(), password: authPassword }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         setAuthError(data.error || "Invalid email or password.");
         return;
       }
-      applyProfile(data.profile);
-      await Promise.all([loadLogs(), loadLeaderboard()]);
       setAuthPassword("");
+      applyProfile(data.profile);
+      window.scrollTo({ top: 0 });
+      await Promise.all([loadLogs(), loadLeaderboard()]);
       setAlertNotification(`Welcome back, ${data.profile.name}!`);
     } catch (err) {
       console.error(err);
       setAuthError("Network error. Please try again.");
     } finally {
-      setLoadingSession(false);
+      setAuthSubmitting(false);
     }
   };
 
@@ -503,6 +509,14 @@ export default function App() {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Initial session-restore loading state (prevents a blank screen) */}
+        {loadingSession && (
+          <div className="flex flex-col items-center justify-center py-32 text-slate-400" role="status" aria-live="polite">
+            <Sprout className="w-10 h-10 text-emerald-400 animate-pulse mb-3" aria-hidden="true" />
+            <p className="text-sm font-display">Loading CarbonSync…</p>
+          </div>
+        )}
 
         {/* Unauthenticated Landing Experience */}
         {!userProfile && !loadingSession && (
@@ -831,10 +845,17 @@ export default function App() {
 
                   <button
                     type="submit"
-                    disabled={loadingSession}
+                    disabled={authSubmitting}
+                    aria-busy={authSubmitting}
                     className="w-full py-3 bg-emerald-400 hover:bg-emerald-300 disabled:opacity-60 disabled:cursor-not-allowed text-emerald-950 font-display font-extrabold rounded-xl text-xs transition-all shadow-lg shadow-emerald-500/15 cursor-pointer flex items-center justify-center gap-2 mt-2"
                   >
-                    {authMode === "register" ? "Create account" : "Sign in"} <ArrowRight className="w-4 h-4" aria-hidden="true" />
+                    {authSubmitting
+                      ? (authMode === "register" ? "Creating account…" : "Signing in…")
+                      : (
+                        <>
+                          {authMode === "register" ? "Create account" : "Sign in"} <ArrowRight className="w-4 h-4" aria-hidden="true" />
+                        </>
+                      )}
                   </button>
 
                   <div className="flex items-center gap-3 py-0.5">
