@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { Users, Award, Share2, Sparkles, MessageSquare, Heart, Check, Copy, Trophy, Flame, Sprout, Globe, Bike, Zap, Leaf, ThumbsUp } from "lucide-react";
+import { Users, Award, Share2, Sparkles, MessageSquare, Heart, Check, Copy, Trophy, Flame, Leaf, ThumbsUp } from "lucide-react";
 import { LeaderboardEntry, UserProfile } from "../types";
+import AvatarIcon from "./AvatarIcon";
 
 interface CommunityLeaderboardProps {
   currentUserId: string;
@@ -136,21 +137,6 @@ Join me to reduce our emissions! @CarbonSync`;
                   }
                 };
 
-                const getUserAvatarIcon = (avatarStr: string) => {
-                  const check = (avatarStr || "").toLowerCase();
-                  if (check.includes("sprout") || check.includes("🌱")) {
-                    return <Sprout className="w-4 h-4 text-emerald-400" />;
-                  } else if (check.includes("globe") || check.includes("🌍")) {
-                    return <Globe className="w-4 h-4 text-blue-400" />;
-                  } else if (check.includes("bike") || check.includes("🚲")) {
-                    return <Bike className="w-4 h-4 text-indigo-400" />;
-                  } else if (check.includes("zap") || check.includes("⚡") || check.includes("energy")) {
-                    return <Zap className="w-4 h-4 text-amber-400" />;
-                  } else {
-                    return <Leaf className="w-4 h-4 text-emerald-500" />;
-                  }
-                };
-
                 return (
                   <div
                     key={player.userId}
@@ -169,7 +155,7 @@ Join me to reduce our emissions! @CarbonSync`;
                       {/* Avatar & Info */}
                       <div className="flex items-center gap-2">
                         <span className="p-2 bg-white/10 rounded-lg flex items-center justify-center">
-                          {getUserAvatarIcon(player.avatar)}
+                          <AvatarIcon avatar={player.avatar} />
                         </span>
                         <div>
                           <span className={`text-sm font-medium ${isMe ? "text-emerald-300 font-bold" : "text-white"}`}>

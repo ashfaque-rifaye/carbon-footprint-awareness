@@ -1,6 +1,7 @@
-import React, { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Bot, Send, Loader2, Sparkles, User as UserIcon, AlertCircle } from "lucide-react";
 import type { UserProfile } from "../types";
+import Markdown from "./Markdown";
 
 interface ChatMessage {
   role: "user" | "model";
@@ -19,46 +20,6 @@ const STARTER_PROMPTS = [
   "Give me 3 quick wins to lower my footprint",
   "How much CO₂ does a 15 km car trip make?",
 ];
-
-/**
- * Lightweight Markdown renderer for assistant replies: handles headings, bullet
- * lists, and **bold** inline emphasis. Kept dependency-free and safe (text only,
- * never executes HTML).
- */
-function renderMarkdown(text: string) {
-  return text.split("\n\n").map((chunk, i) => {
-    const trimmed = chunk.trim();
-    if (!trimmed) return null;
-
-    if (trimmed.startsWith("### ")) {
-      return <h4 key={i} className="font-display font-bold text-white text-sm pt-1">{renderInline(trimmed.slice(4))}</h4>;
-    }
-    if (trimmed.startsWith("## ")) {
-      return <h3 key={i} className="font-display font-bold text-white text-base pt-1">{renderInline(trimmed.slice(3))}</h3>;
-    }
-    if (/^(\*|-)\s/.test(trimmed)) {
-      return (
-        <ul key={i} className="list-disc pl-5 space-y-1">
-          {trimmed.split("\n").map((li, j) => (
-            <li key={j}>{renderInline(li.replace(/^(\*|-)\s+/, ""))}</li>
-          ))}
-        </ul>
-      );
-    }
-    return <p key={i}>{renderInline(trimmed)}</p>;
-  });
-}
-
-/** Render **bold** segments inside a line of text. */
-function renderInline(text: string) {
-  const parts = text.split(/(\*\*[^*]+\*\*)/g);
-  return parts.map((part, i) => {
-    if (part.startsWith("**") && part.endsWith("**")) {
-      return <strong key={i} className="text-emerald-300 font-semibold">{part.slice(2, -2)}</strong>;
-    }
-    return <React.Fragment key={i}>{part}</React.Fragment>;
-  });
-}
 
 export default function EcoAssistant({ userProfile, variant = "full" }: EcoAssistantProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([
@@ -177,7 +138,7 @@ export default function EcoAssistant({ userProfile, variant = "full" }: EcoAssis
                   : "bg-white/5 text-slate-200 border border-white/10"
               }`}
             >
-              {renderMarkdown(m.text)}
+              <Markdown text={m.text} className="space-y-2" />
             </div>
           </div>
         ))}

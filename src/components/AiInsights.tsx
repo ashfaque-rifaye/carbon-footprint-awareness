@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Sparkles, Loader2, ArrowRight, CheckCircle2, AlertCircle, RefreshCw } from "lucide-react";
 import { UserProfile, EmissionsLog } from "../types";
 import { fallbackInsights } from "../lib/insights";
+import Markdown from "./Markdown";
 
 interface SuggestedAction {
   id: string;
@@ -148,33 +149,10 @@ export default function AiInsights({
             )}
 
             {/* Render formatted AI markdown insights */}
-            <div className="prose prose-invert text-xs text-slate-200 space-y-3 leading-relaxed max-h-[220px] overflow-y-auto pr-2">
-              {insightsHtml.split("\n\n").map((chunk, index) => {
-                // Render list items clean
-                if (chunk.startsWith("* ") || chunk.startsWith("- ")) {
-                  return (
-                    <ul key={index} className="list-disc pl-5 space-y-1 my-1">
-                      {chunk.split("\n").map((li, i) => (
-                        <li key={i}>{li.replace(/^(\*\s+|\-\s+)/, "")}</li>
-                      ))}
-                    </ul>
-                  );
-                }
-                
-                // Render headers
-                if (chunk.startsWith("### ")) {
-                  return <h4 key={index} className="font-display font-bold text-sm text-white pt-2">{chunk.replace("### ", "")}</h4>;
-                }
-                if (chunk.startsWith("## ")) {
-                  return <h3 key={index} className="font-display font-bold text-base text-white pt-2">{chunk.replace("## ", "")}</h3>;
-                }
-                if (chunk.startsWith("**") && chunk.endsWith("**")) {
-                  return <p key={index} className="font-bold text-amber-400 my-1">{chunk.replaceAll("**", "")}</p>;
-                }
-                
-                return <p key={index}>{chunk}</p>;
-              })}
-            </div>
+            <Markdown
+              text={insightsHtml}
+              className="prose prose-invert text-xs text-slate-200 space-y-3 leading-relaxed max-h-[220px] overflow-y-auto pr-2"
+            />
 
             {/* Render Recommended Challenges actions block */}
             {suggestedActions.length > 0 && (
