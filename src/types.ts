@@ -84,7 +84,8 @@ export const STATIC_CHALLENGES: Challenge[] = [
   {
     id: "waste_compost",
     title: "Zero Food Waste Champion",
-    description: "Compost organic vegetable scraps and plan meals to leave zero edible waste today.",
+    description:
+      "Compost organic vegetable scraps and plan meals to leave zero edible waste today.",
     category: "waste",
     kgSaved: 1.8,
     points: 60,
@@ -102,12 +103,13 @@ export const STATIC_CHALLENGES: Challenge[] = [
   {
     id: "trans_express",
     title: "The Locomotive Transition",
-    description: "Choose high-speed electric mass rail systems over short-distance regional flights.",
+    description:
+      "Choose high-speed electric mass rail systems over short-distance regional flights.",
     category: "transport",
     kgSaved: 38.0,
     points: 350,
     difficulty: "Hard",
-  }
+  },
 ];
 
 // Achievements / Milestones threshold requirements
@@ -151,5 +153,5 @@ export const STATIC_MILESTONES: Milestone[] = [
     pointsRequired: 5000, // Or customized evaluations
     badge: "flame",
     unlocked: false,
-  }
+  },
 ];

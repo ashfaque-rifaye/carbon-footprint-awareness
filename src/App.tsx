@@ -240,7 +240,8 @@ export default function App() {
     const currentMilestones = milestones.map((ms) => {
       if (ms.unlocked) return ms;
 
-      const passes = ms.id === "badge_streak_king" ? streakTotal >= 5 : pointsTotal >= ms.pointsRequired;
+      const passes =
+        ms.id === "badge_streak_king" ? streakTotal >= 5 : pointsTotal >= ms.pointsRequired;
       if (passes) {
         setCongratsBadge(ms.badge + " Unlocked Badge: " + ms.title + "!");
         unlockedAny = true;
@@ -304,7 +305,6 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#0a1a10] font-sans text-slate-100 flex flex-col justify-between relative overflow-hidden">
-
       {/* Skip link for keyboard & screen-reader users */}
       <a
         href="#main-content"
@@ -323,7 +323,6 @@ export default function App() {
       {/* Banner / Header */}
       <header className="sticky top-4 z-50 max-w-7xl mx-auto w-[calc(100%-2rem)] bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl shadow-lg relative">
         <div className="px-4 sm:px-6 lg:px-8 h-18 flex items-center justify-between">
-
           {/* Logo element representation */}
           <div className="flex items-center gap-3">
             <div className="p-2 bg-emerald-400 rounded-xl shadow-lg shadow-emerald-500/20">
@@ -333,7 +332,9 @@ export default function App() {
               <h1 className="font-display font-extrabold text-lg text-white leading-tight tracking-tight">
                 CarbonSync
               </h1>
-              <p className="text-[10px] text-emerald-300/80 font-mono">Dynamic Multi-Modal Impact Tracking</p>
+              <p className="text-[10px] text-emerald-300/80 font-mono">
+                Dynamic Multi-Modal Impact Tracking
+              </p>
             </div>
           </div>
 
@@ -342,10 +343,16 @@ export default function App() {
             {userProfile ? (
               <div className="flex items-center gap-3 bg-white/10 pl-3.5 pr-2 py-1.5 rounded-full border border-white/20">
                 <div className="text-right hidden sm:block">
-                  <span className="text-xs text-slate-100 font-semibold block">{userProfile.name}</span>
-                  <span className="text-[9px] text-emerald-300 font-mono font-bold block">SIGNED IN</span>
+                  <span className="text-xs text-slate-100 font-semibold block">
+                    {userProfile.name}
+                  </span>
+                  <span className="text-[9px] text-emerald-300 font-mono font-bold block">
+                    SIGNED IN
+                  </span>
                 </div>
-                <span className="bg-white/15 p-1.5 rounded-full flex items-center justify-center"><AvatarIcon avatar={userProfile.avatar} /></span>
+                <span className="bg-white/15 p-1.5 rounded-full flex items-center justify-center">
+                  <AvatarIcon avatar={userProfile.avatar} />
+                </span>
                 <button
                   type="button"
                   onClick={handleLogout}
@@ -372,8 +379,10 @@ export default function App() {
       </header>
 
       {/* Main Workspace Body */}
-      <main id="main-content" className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 relative z-10">
-
+      <main
+        id="main-content"
+        className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 relative z-10"
+      >
         {/* Dynamic Alerts Banner */}
         {alertNotification && (
           <div
@@ -391,9 +400,14 @@ export default function App() {
           <div className="glass-accent rounded-2xl p-6 text-center border bg-brand-500/10 border-brand-500 relative overflow-hidden animate-fade-in-scale">
             <div className="absolute inset-0 bg-brand-500/5 animate-pulse"></div>
             <Award className="w-12 h-12 text-amber-400 mx-auto animate-bounce mb-3" />
-            <h2 className="font-display font-extrabold text-2xl text-white tracking-tight">Milestone Unlocked!</h2>
+            <h2 className="font-display font-extrabold text-2xl text-white tracking-tight">
+              Milestone Unlocked!
+            </h2>
             <p className="text-sm text-brand-400 font-semibold mb-1">{congratsBadge}</p>
-            <p className="text-xs text-slate-400 max-w-md mx-auto">Congratulations! Your continuous ecological tracking helps reduce real carbon footprint offsets daily.</p>
+            <p className="text-xs text-slate-400 max-w-md mx-auto">
+              Congratulations! Your continuous ecological tracking helps reduce real carbon
+              footprint offsets daily.
+            </p>
           </div>
         )}
 
@@ -407,7 +421,11 @@ export default function App() {
 
         {/* Initial session-restore loading state (prevents a blank screen) */}
         {loadingSession && (
-          <div className="flex flex-col items-center justify-center py-32 text-slate-400" role="status" aria-live="polite">
+          <div
+            className="flex flex-col items-center justify-center py-32 text-slate-400"
+            role="status"
+            aria-live="polite"
+          >
             <Sprout className="w-10 h-10 text-emerald-400 animate-pulse mb-3" aria-hidden="true" />
             <p className="text-sm font-display">Loading CarbonSync…</p>
           </div>
@@ -448,26 +466,38 @@ export default function App() {
             onCheer={handleTriggerCheer}
           />
         )}
-
       </main>
 
       {/* FOOTER */}
       <footer className="border-t border-slate-900 py-6 bg-slate-950 mt-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center sm:text-left flex flex-col sm:flex-row justify-between items-center gap-4 text-xs text-slate-500">
           <div>
-            <p>© 2026 CarbonSync. Local-first — your account data stays in the app's own database.</p>
-            <p className="text-[10px] text-slate-600 mt-1">Simulated IoT meters operate on dynamic offset margins compared against standard petrol equivalent loads.</p>
+            <p>
+              © 2026 CarbonSync. Local-first — your account data stays in the app's own database.
+            </p>
+            <p className="text-[10px] text-slate-600 mt-1">
+              Simulated IoT meters operate on dynamic offset margins compared against standard
+              petrol equivalent loads.
+            </p>
           </div>
           <div className="flex gap-4">
-            <a href="#simulator_container" className="hover:text-slate-300 transition-all font-mono">Telemetry</a>
+            <a
+              href="#simulator_container"
+              className="hover:text-slate-300 transition-all font-mono"
+            >
+              Telemetry
+            </a>
             <span>•</span>
-            <a href="#ai_coaching_widget" className="hover:text-slate-300 transition-all font-mono">Gemini Insights</a>
+            <a href="#ai_coaching_widget" className="hover:text-slate-300 transition-all font-mono">
+              Gemini Insights
+            </a>
             <span>•</span>
-            <span className="text-[9px] uppercase font-mono font-bold text-slate-600 bg-slate-900/30 px-2 py-0.5 rounded border border-slate-900">UTC System Time: 2026-06-19</span>
+            <span className="text-[9px] uppercase font-mono font-bold text-slate-600 bg-slate-900/30 px-2 py-0.5 rounded border border-slate-900">
+              UTC System Time: 2026-06-19
+            </span>
           </div>
         </div>
       </footer>
-
     </div>
   );
 }

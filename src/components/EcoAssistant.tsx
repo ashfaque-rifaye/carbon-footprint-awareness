@@ -25,8 +25,7 @@ export default function EcoAssistant({ userProfile, variant = "full" }: EcoAssis
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       role: "model",
-      text:
-        "Hi! I'm your **Eco Assistant** 🌱. Ask me anything about reducing your carbon footprint — transport, energy, food, or waste — and I'll give you practical, personalized tips.",
+      text: "Hi! I'm your **Eco Assistant** 🌱. Ask me anything about reducing your carbon footprint — transport, energy, food, or waste — and I'll give you practical, personalized tips.",
     },
   ]);
   const [input, setInput] = useState("");
@@ -71,15 +70,17 @@ export default function EcoAssistant({ userProfile, variant = "full" }: EcoAssis
       if (!res.ok) throw new Error("chat request failed");
       const data = await res.json();
       setOffline(data.source === "fallback");
-      setMessages((prev) => [...prev, { role: "model", text: data.reply || "Sorry, I couldn't generate a reply." }]);
+      setMessages((prev) => [
+        ...prev,
+        { role: "model", text: data.reply || "Sorry, I couldn't generate a reply." },
+      ]);
     } catch {
       setOffline(true);
       setMessages((prev) => [
         ...prev,
         {
           role: "model",
-          text:
-            "I'm having trouble reaching the AI service right now. In the meantime: focus on transport (walk/cycle short trips), energy (run appliances in daylight), and diet (a couple of plant-based days a week) for the biggest quick wins.",
+          text: "I'm having trouble reaching the AI service right now. In the meantime: focus on transport (walk/cycle short trips), energy (run appliances in daylight), and diet (a couple of plant-based days a week) for the biggest quick wins.",
         },
       ]);
     } finally {
@@ -91,7 +92,10 @@ export default function EcoAssistant({ userProfile, variant = "full" }: EcoAssis
 
   return (
     <div className="glass rounded-2xl p-5 sm:p-6 relative overflow-hidden flex flex-col">
-      <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" aria-hidden="true"></div>
+      <div
+        className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"
+        aria-hidden="true"
+      ></div>
 
       {/* Header */}
       <div className="flex items-center justify-between pb-4 border-b border-white/10 mb-4">
@@ -100,7 +104,9 @@ export default function EcoAssistant({ userProfile, variant = "full" }: EcoAssis
             <Bot className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="font-display font-bold text-base sm:text-lg text-white">Eco Assistant</h3>
+            <h3 className="font-display font-bold text-base sm:text-lg text-white">
+              Eco Assistant
+            </h3>
             <p className="text-[11px] text-emerald-200/60 flex items-center gap-1">
               <Sparkles className="w-3 h-3" aria-hidden="true" /> Conversational AI coach · Gemini
             </p>
@@ -125,11 +131,17 @@ export default function EcoAssistant({ userProfile, variant = "full" }: EcoAssis
           <div key={i} className={`flex gap-2.5 ${m.role === "user" ? "flex-row-reverse" : ""}`}>
             <span
               className={`shrink-0 w-7 h-7 rounded-lg flex items-center justify-center ${
-                m.role === "user" ? "bg-blue-500/15 text-blue-300" : "bg-emerald-500/15 text-emerald-300"
+                m.role === "user"
+                  ? "bg-blue-500/15 text-blue-300"
+                  : "bg-emerald-500/15 text-emerald-300"
               }`}
               aria-hidden="true"
             >
-              {m.role === "user" ? <UserIcon className="w-3.5 h-3.5" /> : <Bot className="w-3.5 h-3.5" />}
+              {m.role === "user" ? (
+                <UserIcon className="w-3.5 h-3.5" />
+              ) : (
+                <Bot className="w-3.5 h-3.5" />
+              )}
             </span>
             <div
               className={`max-w-[82%] rounded-2xl px-3.5 py-2.5 text-xs leading-relaxed space-y-2 ${
@@ -145,7 +157,10 @@ export default function EcoAssistant({ userProfile, variant = "full" }: EcoAssis
 
         {loading && (
           <div className="flex gap-2.5">
-            <span className="shrink-0 w-7 h-7 rounded-lg flex items-center justify-center bg-emerald-500/15 text-emerald-300" aria-hidden="true">
+            <span
+              className="shrink-0 w-7 h-7 rounded-lg flex items-center justify-center bg-emerald-500/15 text-emerald-300"
+              aria-hidden="true"
+            >
               <Bot className="w-3.5 h-3.5" />
             </span>
             <div className="bg-white/5 border border-white/10 rounded-2xl px-3.5 py-2.5 text-xs text-slate-400 flex items-center gap-2">

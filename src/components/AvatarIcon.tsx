@@ -12,9 +12,13 @@ export default function AvatarIcon({
   className?: string;
 }) {
   const a = (avatar || "").toLowerCase();
-  if (a.includes("sprout") || a.includes("🌱")) return <Sprout className={`${className} text-emerald-400`} aria-hidden="true" />;
-  if (a.includes("globe") || a.includes("🌍")) return <Globe className={`${className} text-blue-400`} aria-hidden="true" />;
-  if (a.includes("bike") || a.includes("🚲")) return <Bike className={`${className} text-indigo-400`} aria-hidden="true" />;
-  if (a.includes("zap") || a.includes("⚡") || a.includes("energy")) return <Zap className={`${className} text-amber-400`} aria-hidden="true" />;
+  if (a.includes("sprout") || a.includes("🌱"))
+    return <Sprout className={`${className} text-emerald-400`} aria-hidden="true" />;
+  if (a.includes("globe") || a.includes("🌍"))
+    return <Globe className={`${className} text-blue-400`} aria-hidden="true" />;
+  if (a.includes("bike") || a.includes("🚲"))
+    return <Bike className={`${className} text-indigo-400`} aria-hidden="true" />;
+  if (a.includes("zap") || a.includes("⚡") || a.includes("energy"))
+    return <Zap className={`${className} text-amber-400`} aria-hidden="true" />;
   return <Leaf className={`${className} text-emerald-500`} aria-hidden="true" />;
 }

@@ -76,7 +76,14 @@ describe("buildChatSystemPrompt", () => {
 
   it("applies the CO-STAR framework sections", () => {
     const prompt = buildChatSystemPrompt(normalizeChatProfile({}));
-    for (const section of ["# CONTEXT", "# OBJECTIVE", "# STYLE", "# TONE", "# AUDIENCE", "# RESPONSE FORMAT"]) {
+    for (const section of [
+      "# CONTEXT",
+      "# OBJECTIVE",
+      "# STYLE",
+      "# TONE",
+      "# AUDIENCE",
+      "# RESPONSE FORMAT",
+    ]) {
       expect(prompt).toContain(section);
     }
   });
@@ -116,7 +123,9 @@ describe("fallbackChatReply", () => {
   });
 
   it("returns energy guidance for electricity questions", () => {
-    const reply = fallbackChatReply([{ role: "user", text: "How can I reduce my electricity use?" }]);
+    const reply = fallbackChatReply([
+      { role: "user", text: "How can I reduce my electricity use?" },
+    ]);
     expect(reply.toLowerCase()).toContain("energy");
   });
 

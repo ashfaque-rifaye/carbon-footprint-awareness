@@ -1,10 +1,28 @@
 import React, { useState } from "react";
 import {
-  TrendingDown, Trophy, Flame, Leaf, LayoutDashboard, History, Sparkles, Bot,
-  Globe, Award, Plus, Check, Trash2, Bike, Sprout, Zap,
+  TrendingDown,
+  Trophy,
+  Flame,
+  Leaf,
+  LayoutDashboard,
+  History,
+  Sparkles,
+  Bot,
+  Globe,
+  Award,
+  Plus,
+  Check,
+  Trash2,
+  Bike,
+  Sprout,
+  Zap,
 } from "lucide-react";
 import {
-  UserProfile, EmissionsLog, LeaderboardEntry, Milestone, STATIC_CHALLENGES,
+  UserProfile,
+  EmissionsLog,
+  LeaderboardEntry,
+  Milestone,
+  STATIC_CHALLENGES,
 } from "../types";
 import { treesEquivalent } from "../lib/carbon";
 import DeviceSimulator from "./DeviceSimulator";
@@ -22,18 +40,48 @@ interface DashboardProps {
   leaderboard: LeaderboardEntry[];
   milestones: Milestone[];
   simulatedSensors: { meterSaving: number; trackerMiles: number };
-  onLogActivity: (activityName: string, category: Category, kgSaved: number, source: LogSource) => void;
+  onLogActivity: (
+    activityName: string,
+    category: Category,
+    kgSaved: number,
+    source: LogSource
+  ) => void;
   onDeleteLog: (logId: string) => void;
   onToggle: (field: "smartMeterConnected" | "transportTrackerConnected", val: boolean) => void;
   onCheer: (targetUserId: string, targetName: string) => void;
 }
 
 const TABS: { id: DashboardTab; label: string; icon: React.ReactNode; active: string }[] = [
-  { id: "dashboard", label: "Eco Tracker", icon: <LayoutDashboard className="w-4 h-4 shrink-0" />, active: "text-emerald-400 border-emerald-500/20 shadow-emerald-500/5" },
-  { id: "ledger", label: "Carbon Ledger", icon: <History className="w-4 h-4 shrink-0" />, active: "text-teal-400 border-teal-500/20 shadow-teal-500/5" },
-  { id: "insights", label: "Smart AI Coach", icon: <Sparkles className="w-4 h-4 shrink-0 animate-pulse" />, active: "text-purple-400 border-purple-500/20 shadow-purple-500/5" },
-  { id: "assistant", label: "Eco Assistant", icon: <Bot className="w-4 h-4 shrink-0" />, active: "text-emerald-400 border-emerald-500/20 shadow-emerald-500/5" },
-  { id: "leaderboard", label: "Standings & Badges", icon: <Trophy className="w-4 h-4 shrink-0" />, active: "text-amber-400 border-amber-500/20 shadow-amber-500/5" },
+  {
+    id: "dashboard",
+    label: "Eco Tracker",
+    icon: <LayoutDashboard className="w-4 h-4 shrink-0" />,
+    active: "text-emerald-400 border-emerald-500/20 shadow-emerald-500/5",
+  },
+  {
+    id: "ledger",
+    label: "Carbon Ledger",
+    icon: <History className="w-4 h-4 shrink-0" />,
+    active: "text-teal-400 border-teal-500/20 shadow-teal-500/5",
+  },
+  {
+    id: "insights",
+    label: "Smart AI Coach",
+    icon: <Sparkles className="w-4 h-4 shrink-0 animate-pulse" />,
+    active: "text-purple-400 border-purple-500/20 shadow-purple-500/5",
+  },
+  {
+    id: "assistant",
+    label: "Eco Assistant",
+    icon: <Bot className="w-4 h-4 shrink-0" />,
+    active: "text-emerald-400 border-emerald-500/20 shadow-emerald-500/5",
+  },
+  {
+    id: "leaderboard",
+    label: "Standings & Badges",
+    icon: <Trophy className="w-4 h-4 shrink-0" />,
+    active: "text-amber-400 border-amber-500/20 shadow-amber-500/5",
+  },
 ];
 
 const LEDGER_COLORS: Record<Category, string> = {
@@ -45,21 +93,31 @@ const LEDGER_COLORS: Record<Category, string> = {
 
 function milestoneBadgeIcon(badge: string) {
   switch (badge) {
-    case "shield": return <Award className="w-5 h-5 text-blue-400" />;
-    case "trees": return <Globe className="w-5 h-5 text-emerald-300" />;
-    case "zap": return <Zap className="w-5 h-5 text-amber-400 shrink-0" />;
-    case "flame": return <Flame className="w-5 h-5 text-amber-500 animate-pulse" />;
-    default: return <Sprout className="w-5 h-5 text-emerald-400" />;
+    case "shield":
+      return <Award className="w-5 h-5 text-blue-400" />;
+    case "trees":
+      return <Globe className="w-5 h-5 text-emerald-300" />;
+    case "zap":
+      return <Zap className="w-5 h-5 text-amber-400 shrink-0" />;
+    case "flame":
+      return <Flame className="w-5 h-5 text-amber-500 animate-pulse" />;
+    default:
+      return <Sprout className="w-5 h-5 text-emerald-400" />;
   }
 }
 
 function categoryIcon(category: string) {
   switch (category) {
-    case "diet": return <Leaf className="w-5 h-5 text-emerald-400" />;
-    case "transport": return <Bike className="w-5 h-5 text-blue-400" />;
-    case "energy": return <Zap className="w-5 h-5 text-amber-400" />;
-    case "waste": return <Trash2 className="w-5 h-5 text-purple-400" />;
-    default: return <Sprout className="w-5 h-5 text-emerald-400" />;
+    case "diet":
+      return <Leaf className="w-5 h-5 text-emerald-400" />;
+    case "transport":
+      return <Bike className="w-5 h-5 text-blue-400" />;
+    case "energy":
+      return <Zap className="w-5 h-5 text-amber-400" />;
+    case "waste":
+      return <Trash2 className="w-5 h-5 text-purple-400" />;
+    default:
+      return <Sprout className="w-5 h-5 text-emerald-400" />;
   }
 }
 
@@ -70,8 +128,15 @@ function categoryIcon(category: string) {
  * come from the parent via props.
  */
 export default function Dashboard({
-  profile, emissionsLogs, leaderboard, milestones, simulatedSensors,
-  onLogActivity, onDeleteLog, onToggle, onCheer,
+  profile,
+  emissionsLogs,
+  leaderboard,
+  milestones,
+  simulatedSensors,
+  onLogActivity,
+  onDeleteLog,
+  onToggle,
+  onCheer,
 }: DashboardProps) {
   const [activeTab, setActiveTab] = useState<DashboardTab>("dashboard");
   const [activeCategory, setActiveCategory] = useState<"all" | Category>("all");
@@ -83,37 +148,84 @@ export default function Dashboard({
   const handleCreateCustomAction = (e: React.FormEvent) => {
     e.preventDefault();
     if (!customActionName.trim() || customActionSavings <= 0) return;
-    onLogActivity(customActionName, customActionType, parseFloat(customActionSavings.toFixed(1)), "manual");
+    onLogActivity(
+      customActionName,
+      customActionType,
+      parseFloat(customActionSavings.toFixed(1)),
+      "manual"
+    );
     setCustomActionName("");
     setIsCustomFormOpen(false);
   };
 
   const stats = [
-    { label: "Total Carbon Saved", value: profile.totalSavedKg.toFixed(1), unit: "kg CO₂", color: "text-brand-400", border: "border-l-brand-500", note: "Continuous lifestyle offset", icon: <TrendingDown className="w-3.5 h-3.5 text-brand-400" /> },
-    { label: "Eco Level Points", value: String(profile.points), unit: "XP", color: "text-amber-500", border: "border-l-amber-500", note: "Unlock next level milestone", icon: <Trophy className="w-3.5 h-3.5 text-amber-500 animate-pulse" /> },
-    { label: "Daily Active Streak", value: String(profile.streakDays), unit: "Days", color: "text-red-500", border: "border-l-red-500", note: "Maintain active logging chain", icon: <Flame className="w-3.5 h-3.5 text-red-500 animate-bounce" /> },
-    { label: "Trees Equivalent", value: String(treesEquivalent(profile.totalSavedKg)), unit: "Trees", color: "text-blue-400", border: "border-l-blue-500", note: "Annual mature absorption equivalent", icon: <Leaf className="w-3.5 h-3.5 text-blue-400 shrink-0" /> },
+    {
+      label: "Total Carbon Saved",
+      value: profile.totalSavedKg.toFixed(1),
+      unit: "kg CO₂",
+      color: "text-brand-400",
+      border: "border-l-brand-500",
+      note: "Continuous lifestyle offset",
+      icon: <TrendingDown className="w-3.5 h-3.5 text-brand-400" />,
+    },
+    {
+      label: "Eco Level Points",
+      value: String(profile.points),
+      unit: "XP",
+      color: "text-amber-500",
+      border: "border-l-amber-500",
+      note: "Unlock next level milestone",
+      icon: <Trophy className="w-3.5 h-3.5 text-amber-500 animate-pulse" />,
+    },
+    {
+      label: "Daily Active Streak",
+      value: String(profile.streakDays),
+      unit: "Days",
+      color: "text-red-500",
+      border: "border-l-red-500",
+      note: "Maintain active logging chain",
+      icon: <Flame className="w-3.5 h-3.5 text-red-500 animate-bounce" />,
+    },
+    {
+      label: "Trees Equivalent",
+      value: String(treesEquivalent(profile.totalSavedKg)),
+      unit: "Trees",
+      color: "text-blue-400",
+      border: "border-l-blue-500",
+      note: "Annual mature absorption equivalent",
+      icon: <Leaf className="w-3.5 h-3.5 text-blue-400 shrink-0" />,
+    },
   ];
 
   return (
     <div className="space-y-8">
-
       {/* Quick Metrics stats grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {stats.map((s) => (
-          <div key={s.label} className={`glass rounded-2xl p-5 border-l-4 ${s.border} relative overflow-hidden`}>
+          <div
+            key={s.label}
+            className={`glass rounded-2xl p-5 border-l-4 ${s.border} relative overflow-hidden`}
+          >
             <span className="text-xs text-slate-400 uppercase font-mono block mb-1">{s.label}</span>
-            <span className={`font-display font-extrabold text-2xl md:text-3xl ${s.color} block leading-tight font-mono`}>
+            <span
+              className={`font-display font-extrabold text-2xl md:text-3xl ${s.color} block leading-tight font-mono`}
+            >
               {s.value} <span className="text-xs text-slate-400 font-sans">{s.unit}</span>
             </span>
-            <p className="text-[10px] text-slate-500 mt-2 flex items-center gap-1.5">{s.icon} {s.note}</p>
+            <p className="text-[10px] text-slate-500 mt-2 flex items-center gap-1.5">
+              {s.icon} {s.note}
+            </p>
           </div>
         ))}
       </div>
 
       {/* Workspace Segment Switcher Navigation Tabs */}
       <div className="flex justify-center my-6">
-        <div role="tablist" aria-label="Dashboard sections" className="bg-slate-900/60 p-1.5 rounded-2xl flex flex-wrap md:flex-nowrap gap-1.5 border border-white/5 w-full max-w-4xl shadow-xl">
+        <div
+          role="tablist"
+          aria-label="Dashboard sections"
+          className="bg-slate-900/60 p-1.5 rounded-2xl flex flex-wrap md:flex-nowrap gap-1.5 border border-white/5 w-full max-w-4xl shadow-xl"
+        >
           {TABS.map((tab) => (
             <button
               key={tab.id}
@@ -140,13 +252,20 @@ export default function Dashboard({
             <Globe className="w-5 h-5 text-blue-400 shrink-0" />
             <div className="text-left">
               <p className="text-white font-bold">Local Carbon Ledger Active</p>
-              <p className="text-slate-400 text-[11px] mt-0.5">Stored privately for account: <span className="font-mono text-blue-400 font-semibold">{profile.email}</span></p>
+              <p className="text-slate-400 text-[11px] mt-0.5">
+                Stored privately for account:{" "}
+                <span className="font-mono text-blue-400 font-semibold">{profile.email}</span>
+              </p>
             </div>
           </div>
           <div className="bg-slate-900/80 border border-white/5 py-1 px-3.5 rounded-full flex gap-3 text-[10px] font-mono text-slate-500 shrink-0">
-            <span>STATUS: <span className="text-emerald-400 font-bold">READY</span></span>
+            <span>
+              STATUS: <span className="text-emerald-400 font-bold">READY</span>
+            </span>
             <span>•</span>
-            <span>LEDGER: <span className="text-blue-400 font-bold">ACTIVE</span></span>
+            <span>
+              LEDGER: <span className="text-blue-400 font-bold">ACTIVE</span>
+            </span>
           </div>
         </div>
       </div>
@@ -165,8 +284,12 @@ export default function Dashboard({
           <div className="glass rounded-2xl p-6 space-y-6">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div>
-                <h3 className="font-display font-bold text-lg text-white">Daily Greenhouse Challenges</h3>
-                <p className="text-xs text-slate-400">Claim challenges to score level points and reduce real footprint averages</p>
+                <h3 className="font-display font-bold text-lg text-white">
+                  Daily Greenhouse Challenges
+                </h3>
+                <p className="text-xs text-slate-400">
+                  Claim challenges to score level points and reduce real footprint averages
+                </p>
               </div>
 
               <div className="flex flex-wrap gap-1.5 bg-white/5 border border-white/10 p-1 rounded-xl">
@@ -177,7 +300,9 @@ export default function Dashboard({
                     aria-pressed={activeCategory === cat}
                     onClick={() => setActiveCategory(cat)}
                     className={`px-3 py-1.5 rounded-lg text-xs font-display font-bold transition-all ${
-                      activeCategory === cat ? "bg-emerald-400 text-emerald-950 font-extrabold" : "text-slate-300 hover:text-white"
+                      activeCategory === cat
+                        ? "bg-emerald-400 text-emerald-950 font-extrabold"
+                        : "text-slate-300 hover:text-white"
                     }`}
                   >
                     {cat.toUpperCase()}
@@ -187,7 +312,9 @@ export default function Dashboard({
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {STATIC_CHALLENGES.filter((ch) => activeCategory === "all" || ch.category === activeCategory).map((challenge) => (
+              {STATIC_CHALLENGES.filter(
+                (ch) => activeCategory === "all" || ch.category === activeCategory
+              ).map((challenge) => (
                 <div
                   key={challenge.id}
                   className="bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl p-4 flex flex-col justify-between transition-all hover:border-white/20 hover:shadow-lg group"
@@ -195,28 +322,43 @@ export default function Dashboard({
                   <div>
                     <div className="flex justify-between items-start mb-2">
                       <span>{categoryIcon(challenge.category)}</span>
-                      <span className={`text-[10px] px-2.5 py-0.5 rounded font-mono font-bold uppercase ${
-                        challenge.difficulty === "Easy"
-                          ? "bg-emerald-950/80 text-emerald-300 border border-emerald-500/10"
-                          : challenge.difficulty === "Medium"
-                          ? "bg-amber-950/80 text-amber-300 border border-amber-500/10"
-                          : "bg-red-950/80 text-red-300 border border-red-500/10"
-                      }`}>
+                      <span
+                        className={`text-[10px] px-2.5 py-0.5 rounded font-mono font-bold uppercase ${
+                          challenge.difficulty === "Easy"
+                            ? "bg-emerald-950/80 text-emerald-300 border border-emerald-500/10"
+                            : challenge.difficulty === "Medium"
+                              ? "bg-amber-950/80 text-amber-300 border border-amber-500/10"
+                              : "bg-red-950/80 text-red-300 border border-red-500/10"
+                        }`}
+                      >
                         {challenge.difficulty}
                       </span>
                     </div>
                     <h4 className="text-sm font-bold text-white mb-1">{challenge.title}</h4>
-                    <p className="text-xs text-slate-300 line-clamp-2 leading-relaxed">{challenge.description}</p>
+                    <p className="text-xs text-slate-300 line-clamp-2 leading-relaxed">
+                      {challenge.description}
+                    </p>
                   </div>
 
                   <div className="mt-4 pt-3 border-t border-white/10 flex justify-between items-center text-xs">
                     <div className="flex gap-2">
-                      <span className="text-emerald-300 font-mono text-[10px] font-bold">-{challenge.kgSaved} kg CO₂</span>
-                      <span className="text-amber-400 font-mono text-[10px] font-bold">+{challenge.points} XP</span>
+                      <span className="text-emerald-300 font-mono text-[10px] font-bold">
+                        -{challenge.kgSaved} kg CO₂
+                      </span>
+                      <span className="text-amber-400 font-mono text-[10px] font-bold">
+                        +{challenge.points} XP
+                      </span>
                     </div>
                     <button
                       type="button"
-                      onClick={() => onLogActivity(challenge.title, challenge.category, challenge.kgSaved, "manual")}
+                      onClick={() =>
+                        onLogActivity(
+                          challenge.title,
+                          challenge.category,
+                          challenge.kgSaved,
+                          "manual"
+                        )
+                      }
                       aria-label={`Log action: ${challenge.title}, saves ${challenge.kgSaved} kg CO2`}
                       className="px-3.5 py-1.5 bg-emerald-400/10 text-emerald-300 hover:bg-emerald-400 hover:text-emerald-950 rounded-lg font-display font-extrabold transition-all text-xs cursor-pointer active:scale-95 flex items-center gap-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60"
                     >
@@ -228,7 +370,9 @@ export default function Dashboard({
             </div>
 
             <div className="pt-4 border-t border-white/10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 text-xs">
-              <span className="text-slate-300">Have a custom green lifestyle offset that's not on the challenge lists?</span>
+              <span className="text-slate-300">
+                Have a custom green lifestyle offset that's not on the challenge lists?
+              </span>
               <button
                 type="button"
                 onClick={() => setIsCustomFormOpen(!isCustomFormOpen)}
@@ -239,12 +383,19 @@ export default function Dashboard({
             </div>
 
             {isCustomFormOpen && (
-              <form onSubmit={handleCreateCustomAction} className="bg-white/5 p-5 rounded-2xl border border-white/15 space-y-4 text-xs backdrop-blur-xl animate-fadeIn">
-                <h4 className="font-display font-bold text-white text-sm">Register Custom Eco Contribution</h4>
+              <form
+                onSubmit={handleCreateCustomAction}
+                className="bg-white/5 p-5 rounded-2xl border border-white/15 space-y-4 text-xs backdrop-blur-xl animate-fadeIn"
+              >
+                <h4 className="font-display font-bold text-white text-sm">
+                  Register Custom Eco Contribution
+                </h4>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <div>
-                    <label htmlFor="custom-action-name" className="text-slate-300 block mb-1">Action Description</label>
+                    <label htmlFor="custom-action-name" className="text-slate-300 block mb-1">
+                      Action Description
+                    </label>
                     <input
                       id="custom-action-name"
                       type="text"
@@ -257,7 +408,9 @@ export default function Dashboard({
                   </div>
 
                   <div>
-                    <label htmlFor="custom-action-type" className="text-slate-300 block mb-1">Ecological Category</label>
+                    <label htmlFor="custom-action-type" className="text-slate-300 block mb-1">
+                      Ecological Category
+                    </label>
                     <select
                       id="custom-action-type"
                       value={customActionType}
@@ -272,7 +425,9 @@ export default function Dashboard({
                   </div>
 
                   <div>
-                    <label htmlFor="custom-action-savings" className="text-slate-300 block mb-1">Est. Savings (kg CO₂)</label>
+                    <label htmlFor="custom-action-savings" className="text-slate-300 block mb-1">
+                      Est. Savings (kg CO₂)
+                    </label>
                     <input
                       id="custom-action-savings"
                       type="number"
@@ -287,10 +442,17 @@ export default function Dashboard({
                 </div>
 
                 <div className="flex justify-end gap-2 text-xs">
-                  <button type="button" onClick={() => setIsCustomFormOpen(false)} className="px-4 py-2 border border-white/10 text-slate-300 hover:text-white rounded-lg transition-all">
+                  <button
+                    type="button"
+                    onClick={() => setIsCustomFormOpen(false)}
+                    className="px-4 py-2 border border-white/10 text-slate-300 hover:text-white rounded-lg transition-all"
+                  >
                     Discard
                   </button>
-                  <button type="submit" className="px-5 py-2 bg-emerald-400 hover:bg-emerald-300 text-emerald-950 rounded-lg transition-all font-bold">
+                  <button
+                    type="submit"
+                    className="px-5 py-2 bg-emerald-400 hover:bg-emerald-300 text-emerald-950 rounded-lg transition-all font-bold"
+                  >
                     Commit Audit Log
                   </button>
                 </div>
@@ -309,7 +471,9 @@ export default function Dashboard({
                 <h3 className="font-display font-extrabold text-lg text-white flex items-center gap-2">
                   <History className="text-teal-400 w-5 h-5 shrink-0" /> Carbon Audit Ledger
                 </h3>
-                <p className="text-xs text-slate-400 mt-0.5">Definitive ecosystem savings logs validated across real-time dynamic thresholds</p>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Definitive ecosystem savings logs validated across real-time dynamic thresholds
+                </p>
               </div>
               <span className="font-mono text-xs text-teal-400 bg-teal-500/10 px-3.5 py-1.5 rounded-full border border-teal-500/20 font-bold self-start sm:self-auto shrink-0">
                 {emissionsLogs.length} AUDIT LOGS
@@ -324,11 +488,15 @@ export default function Dashboard({
                     className="flex items-center justify-between p-4 rounded-xl border border-white/5 bg-slate-950/40 hover:bg-slate-950/80 hover:border-white/10 transition-all text-xs"
                   >
                     <div className="flex items-center gap-3">
-                      <span className={`p-2 rounded-lg border font-mono text-[9px] font-bold shrink-0 uppercase tracking-wider ${LEDGER_COLORS[log.category] || "border-white/5 bg-white/5 text-slate-400"}`}>
+                      <span
+                        className={`p-2 rounded-lg border font-mono text-[9px] font-bold shrink-0 uppercase tracking-wider ${LEDGER_COLORS[log.category] || "border-white/5 bg-white/5 text-slate-400"}`}
+                      >
                         {log.category}
                       </span>
                       <div>
-                        <span className="font-bold text-white block text-sm leading-tight">{log.activityName}</span>
+                        <span className="font-bold text-white block text-sm leading-tight">
+                          {log.activityName}
+                        </span>
                         <div className="flex flex-wrap gap-x-3.5 gap-y-0.5 text-[10.5px] text-slate-500 mt-1 font-mono">
                           <span>Source: {log.source.replace("_", " ")}</span>
                           <span>•</span>
@@ -338,14 +506,19 @@ export default function Dashboard({
                     </div>
 
                     <div className="flex items-center gap-3 font-mono font-bold text-sm">
-                      <span className="text-emerald-450 font-bold font-mono">- {log.kgSaved} kg CO₂</span>
+                      <span className="text-emerald-450 font-bold font-mono">
+                        - {log.kgSaved} kg CO₂
+                      </span>
                       <button
                         type="button"
                         onClick={() => onDeleteLog(log.logId)}
                         className="text-slate-650 hover:text-red-450 p-2 hover:bg-white/5 rounded-xl transition-all cursor-pointer"
                         aria-label={`Remove log entry: ${log.activityName}`}
                       >
-                        <Trash2 className="w-4 h-4 text-slate-550 hover:text-red-400" aria-hidden="true" />
+                        <Trash2
+                          className="w-4 h-4 text-slate-550 hover:text-red-400"
+                          aria-hidden="true"
+                        />
                       </button>
                     </div>
                   </div>
@@ -353,8 +526,13 @@ export default function Dashboard({
               ) : (
                 <div className="py-16 text-center text-slate-500 space-y-2 border border-dashed border-white/5 rounded-2xl bg-slate-950/20">
                   <History className="w-8 h-8 text-slate-650 mx-auto opacity-50 mb-1" />
-                  <p className="text-sm font-bold text-slate-400">The ecological footprint audit ledger is empty.</p>
-                  <p className="text-xs max-w-sm mx-auto">Claim tasks on the tracker tab or run smart IoT integrations to populate synchronized records!</p>
+                  <p className="text-sm font-bold text-slate-400">
+                    The ecological footprint audit ledger is empty.
+                  </p>
+                  <p className="text-xs max-w-sm mx-auto">
+                    Claim tasks on the tracker tab or run smart IoT integrations to populate
+                    synchronized records!
+                  </p>
                 </div>
               )}
             </div>
@@ -373,8 +551,13 @@ export default function Dashboard({
                 <Sparkles className="w-5 h-5 text-purple-400 animate-pulse" />
               </div>
               <div>
-                <h3 className="font-display font-extrabold text-lg text-white">Gemini Smart Ecological Coaching</h3>
-                <p className="text-xs text-slate-400 mt-0.5">Real-time intelligent recommendations based on active telemetry patterns and direct ledger audits</p>
+                <h3 className="font-display font-extrabold text-lg text-white">
+                  Gemini Smart Ecological Coaching
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Real-time intelligent recommendations based on active telemetry patterns and
+                  direct ledger audits
+                </p>
               </div>
             </div>
 
@@ -396,7 +579,8 @@ export default function Dashboard({
               <Bot className="w-5 h-5 text-emerald-400" /> Your Personal Eco Assistant
             </h3>
             <p className="text-xs text-slate-400">
-              Chat with a Gemini-powered coach that knows your stats. Ask for tips tailored to your streak, savings, and connected devices.
+              Chat with a Gemini-powered coach that knows your stats. Ask for tips tailored to your
+              streak, savings, and connected devices.
             </p>
           </div>
           <EcoAssistant userProfile={profile} variant="full" />
@@ -420,7 +604,9 @@ export default function Dashboard({
               <Award className="w-5 h-5 text-amber-500 shrink-0" />
               <div>
                 <h3 className="font-display font-bold text-base text-white">Ecological Badges</h3>
-                <p className="text-xs text-slate-400">Completed thresholds, user achievements, and custom streak multiplier milestones</p>
+                <p className="text-xs text-slate-400">
+                  Completed thresholds, user achievements, and custom streak multiplier milestones
+                </p>
               </div>
             </div>
 
@@ -434,12 +620,20 @@ export default function Dashboard({
                       : "bg-slate-900/40 border-slate-900 text-slate-500"
                   }`}
                 >
-                  <span className={`text-2xl p-2 rounded-lg ${ms.unlocked ? "bg-brand-500/10" : "bg-slate-950 grayscale opacity-60"}`}>
+                  <span
+                    className={`text-2xl p-2 rounded-lg ${ms.unlocked ? "bg-brand-500/10" : "bg-slate-950 grayscale opacity-60"}`}
+                  >
                     {milestoneBadgeIcon(ms.badge)}
                   </span>
                   <div>
-                    <span className={`text-xs font-bold block ${ms.unlocked ? "text-brand-400" : "text-slate-500"}`}>{ms.title}</span>
-                    <span className="text-[10.5px] text-slate-500 block leading-snug mt-0.5">{ms.requirement}</span>
+                    <span
+                      className={`text-xs font-bold block ${ms.unlocked ? "text-brand-400" : "text-slate-500"}`}
+                    >
+                      {ms.title}
+                    </span>
+                    <span className="text-[10.5px] text-slate-500 block leading-snug mt-0.5">
+                      {ms.requirement}
+                    </span>
                   </div>
                 </div>
               ))}

@@ -72,9 +72,10 @@ if (apiKey) {
 // order; a transient error (e.g. an overloaded 503 model) advances to the next.
 // Throws only if every model fails, letting the caller fall back to rule-based
 // generation. Assumes `ai` is non-null (callers guard on it).
-async function generateWithFallback(
-  params: { contents: unknown; config?: Record<string, unknown> }
-): Promise<{ text?: string }> {
+async function generateWithFallback(params: {
+  contents: unknown;
+  config?: Record<string, unknown>;
+}): Promise<{ text?: string }> {
   let lastError: unknown;
   for (const model of MODEL_CHAIN) {
     try {
@@ -242,13 +243,15 @@ async function startServer() {
     if (!user) return res.status(401).json({ error: "Not authenticated." });
 
     const body = req.body ?? {};
-    const activityName = typeof body.activityName === "string" ? body.activityName.trim().slice(0, 120) : "";
+    const activityName =
+      typeof body.activityName === "string" ? body.activityName.trim().slice(0, 120) : "";
     const category = body.category;
     const source = VALID_SOURCES.has(body.source) ? body.source : "manual";
     const kgSaved = Number(body.kgSaved);
 
     if (!activityName) return res.status(400).json({ error: "Activity name is required." });
-    if (!VALID_CATEGORIES.has(category)) return res.status(400).json({ error: "Invalid category." });
+    if (!VALID_CATEGORIES.has(category))
+      return res.status(400).json({ error: "Invalid category." });
     if (!Number.isFinite(kgSaved) || kgSaved <= 0 || kgSaved > 1000) {
       return res.status(400).json({ error: "kgSaved must be between 0 and 1000." });
     }
@@ -306,10 +309,14 @@ async function startServer() {
 
     const body = req.body ?? {};
     const patch: Record<string, unknown> = {};
-    if (typeof body.smartMeterConnected === "boolean") patch.smartMeterConnected = body.smartMeterConnected;
-    if (typeof body.transportTrackerConnected === "boolean") patch.transportTrackerConnected = body.transportTrackerConnected;
-    if (typeof body.name === "string" && body.name.trim()) patch.name = body.name.trim().slice(0, 60);
-    if (typeof body.avatar === "string" && VALID_AVATARS.has(body.avatar)) patch.avatar = body.avatar;
+    if (typeof body.smartMeterConnected === "boolean")
+      patch.smartMeterConnected = body.smartMeterConnected;
+    if (typeof body.transportTrackerConnected === "boolean")
+      patch.transportTrackerConnected = body.transportTrackerConnected;
+    if (typeof body.name === "string" && body.name.trim())
+      patch.name = body.name.trim().slice(0, 60);
+    if (typeof body.avatar === "string" && VALID_AVATARS.has(body.avatar))
+      patch.avatar = body.avatar;
 
     const updated = store.updateProfile(user.id, patch);
     return res.json({ profile: toProfile(updated!) });
@@ -319,9 +326,27 @@ async function startServer() {
   app.get("/api/leaderboard", (_req, res) => {
     const real = store.topLeaderboard(12);
     const seeded = [
-      { userId: "seed_1", name: "Helena BioShield", points: 3420, totalSavedKg: 91.2, avatar: "leaf" },
-      { userId: "seed_2", name: "Arthur WindPower", points: 2150, totalSavedKg: 58.4, avatar: "globe" },
-      { userId: "seed_3", name: "Chloe CycleFast", points: 1280, totalSavedKg: 34.1, avatar: "bike" },
+      {
+        userId: "seed_1",
+        name: "Helena BioShield",
+        points: 3420,
+        totalSavedKg: 91.2,
+        avatar: "leaf",
+      },
+      {
+        userId: "seed_2",
+        name: "Arthur WindPower",
+        points: 2150,
+        totalSavedKg: 58.4,
+        avatar: "globe",
+      },
+      {
+        userId: "seed_3",
+        name: "Chloe CycleFast",
+        points: 1280,
+        totalSavedKg: 34.1,
+        avatar: "bike",
+      },
     ];
     // Merge real users with seeds, dedupe by id, sort by points, cap at 12.
     const merged = [...real, ...seeded]

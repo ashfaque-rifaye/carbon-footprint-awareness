@@ -4,7 +4,9 @@ import React from "react";
 function renderInline(text: string) {
   return text.split(/(\*\*[^*]+\*\*)/g).map((part, i) =>
     part.startsWith("**") && part.endsWith("**") ? (
-      <strong key={i} className="text-emerald-300 font-semibold">{part.slice(2, -2)}</strong>
+      <strong key={i} className="text-emerald-300 font-semibold">
+        {part.slice(2, -2)}
+      </strong>
     ) : (
       <React.Fragment key={i}>{part}</React.Fragment>
     )
@@ -23,10 +25,18 @@ export default function Markdown({ text, className }: { text: string; className?
         const t = chunk.trim();
         if (!t) return null;
         if (t.startsWith("### ")) {
-          return <h4 key={i} className="font-display font-bold text-white text-sm pt-1">{renderInline(t.slice(4))}</h4>;
+          return (
+            <h4 key={i} className="font-display font-bold text-white text-sm pt-1">
+              {renderInline(t.slice(4))}
+            </h4>
+          );
         }
         if (t.startsWith("## ")) {
-          return <h3 key={i} className="font-display font-bold text-white text-base pt-1">{renderInline(t.slice(3))}</h3>;
+          return (
+            <h3 key={i} className="font-display font-bold text-white text-base pt-1">
+              {renderInline(t.slice(3))}
+            </h3>
+          );
         }
         if (/^(\*|-)\s/.test(t)) {
           return (

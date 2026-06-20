@@ -18,7 +18,12 @@ interface AiInsightsProps {
     meterSaving: number;
     trackerMiles: number;
   };
-  onLogEmission: (activity: string, category: "transport" | "energy" | "diet" | "waste", kg: number, source: "manual") => void;
+  onLogEmission: (
+    activity: string,
+    category: "transport" | "energy" | "diet" | "waste",
+    kg: number,
+    source: "manual"
+  ) => void;
 }
 
 export default function AiInsights({
@@ -74,21 +79,28 @@ export default function AiInsights({
     }
   };
 
-  // Run on mounts
+  // Auto-generate insights once, when a signed-in profile first becomes available.
+  // Intentionally keyed on `userProfile` only — we don't want to refetch on every
+  // new log; the user can refresh manually with "Reanalyse".
   useEffect(() => {
     if (userProfile && !insightsHtml) {
       fetchAiInsights();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userProfile]);
 
   // Click action to execute suggestion
   const handleExecuteAction = (action: SuggestedAction) => {
     if (completedSuggestIds.has(action.id)) return;
-    
+
     // Fire emission logger
     onLogEmission(
       `AI Suggested Challenge: ${action.text}`,
-      action.id.includes("transit") || action.id.includes("bike") ? "transport" : action.id.includes("diet") ? "diet" : "energy",
+      action.id.includes("transit") || action.id.includes("bike")
+        ? "transport"
+        : action.id.includes("diet")
+          ? "diet"
+          : "energy",
       action.savedKg,
       "manual"
     );
@@ -100,7 +112,10 @@ export default function AiInsights({
   };
 
   return (
-    <div id="ai_coaching_widget" className="glass rounded-2xl p-6 relative overflow-hidden transition-all duration-300 hover:border-brand-500/20">
+    <div
+      id="ai_coaching_widget"
+      className="glass rounded-2xl p-6 relative overflow-hidden transition-all duration-300 hover:border-brand-500/20"
+    >
       <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full blur-3xl pointer-events-none"></div>
 
       {/* Widget Header */}
@@ -110,7 +125,9 @@ export default function AiInsights({
             <Sparkles className="w-5 h-5 animate-pulse" />
           </div>
           <div>
-            <h3 className="font-display font-bold text-lg text-white">AI Carbon Mitigation Coach</h3>
+            <h3 className="font-display font-bold text-lg text-white">
+              AI Carbon Mitigation Coach
+            </h3>
             <p className="text-xs text-emerald-200/60">Tailored by Gemini 3.5 Flash</p>
           </div>
         </div>
@@ -134,8 +151,13 @@ export default function AiInsights({
           <div className="py-12 flex flex-col items-center justify-center text-center space-y-4 animate-fadeIn">
             <Loader2 className="w-8 h-8 text-amber-500 animate-spin" />
             <div className="space-y-1">
-              <p className="font-display font-bold text-sm text-slate-200">Reading your telemetry &amp; impact logs...</p>
-              <p className="text-xs text-slate-400 max-w-xs">Gemini is synthesizing customized optimization paths for your carbon footprint model.</p>
+              <p className="font-display font-bold text-sm text-slate-200">
+                Reading your telemetry &amp; impact logs...
+              </p>
+              <p className="text-xs text-slate-400 max-w-xs">
+                Gemini is synthesizing customized optimization paths for your carbon footprint
+                model.
+              </p>
             </div>
           </div>
         ) : (
@@ -158,7 +180,8 @@ export default function AiInsights({
             {suggestedActions.length > 0 && (
               <div className="space-y-3 pt-4 border-t border-white/10">
                 <span className="text-xs font-bold text-white flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-300" /> Customized Eco Opportunities Log
+                  <Sparkles className="w-3.5 h-3.5 text-amber-300" /> Customized Eco Opportunities
+                  Log
                 </span>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -170,7 +193,11 @@ export default function AiInsights({
                         type="button"
                         disabled={isCompleted}
                         onClick={() => handleExecuteAction(action)}
-                        aria-label={isCompleted ? `Claimed: ${action.text}` : `Claim task: ${action.text}, saves ${action.savedKg} kg CO2`}
+                        aria-label={
+                          isCompleted
+                            ? `Claimed: ${action.text}`
+                            : `Claim task: ${action.text}, saves ${action.savedKg} kg CO2`
+                        }
                         className={`border rounded-xl p-3.5 flex flex-col justify-between text-left transition-all relative overflow-hidden ${
                           isCompleted
                             ? "bg-white/5 border-white/5 text-slate-500 cursor-default"
@@ -183,14 +210,18 @@ export default function AiInsights({
                           </span>
                         )}
                         <span className="block">
-                          <span className={`block text-xs font-bold ${isCompleted ? "text-slate-500" : "text-white"} leading-snug mb-1.5`}>
+                          <span
+                            className={`block text-xs font-bold ${isCompleted ? "text-slate-500" : "text-white"} leading-snug mb-1.5`}
+                          >
                             {action.text}
                           </span>
                           <span className="flex gap-2 items-center text-[10px] text-slate-400">
                             <span className="bg-slate-950/40 px-2 py-0.5 rounded border border-white/10 font-mono text-emerald-300">
                               -{action.savedKg} kg
                             </span>
-                            <span className="text-amber-400 font-medium font-mono">Bounty: High</span>
+                            <span className="text-amber-400 font-medium font-mono">
+                              Bounty: High
+                            </span>
                           </span>
                         </span>
 

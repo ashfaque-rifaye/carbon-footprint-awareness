@@ -53,7 +53,10 @@ export function summarizeByCategory(logs: EmissionsLog[]): FootprintSummary {
   for (const log of logs ?? []) {
     const cat = log?.category as Category;
     if (!cat || !(cat in totals)) continue;
-    const kg = typeof log.kgSaved === "number" && Number.isFinite(log.kgSaved) && log.kgSaved > 0 ? log.kgSaved : 0;
+    const kg =
+      typeof log.kgSaved === "number" && Number.isFinite(log.kgSaved) && log.kgSaved > 0
+        ? log.kgSaved
+        : 0;
     totals[cat].kg += kg;
     totals[cat].count += 1;
   }
@@ -99,7 +102,10 @@ export interface RankedAction extends RankableAction {
 export function rankActionsByImpactEffort(actions: RankableAction[]): RankedAction[] {
   return (actions ?? [])
     .map((a) => {
-      const savedKg = typeof a.savedKg === "number" && Number.isFinite(a.savedKg) && a.savedKg > 0 ? a.savedKg : 0;
+      const savedKg =
+        typeof a.savedKg === "number" && Number.isFinite(a.savedKg) && a.savedKg > 0
+          ? a.savedKg
+          : 0;
       const effort = EFFORT_WEIGHT[a.cost] ?? EFFORT_WEIGHT.Medium;
       return { ...a, impactEffortScore: parseFloat((savedKg / effort).toFixed(3)) };
     })
@@ -117,7 +123,9 @@ export function buildFocusSummary(summary: FootprintSummary): string {
   }
   const top = summary.byCategory[0];
   const pct = Math.round(top.share * 100);
-  const untouched = summary.byCategory.filter((c) => c.totalKg === 0).map((c) => CATEGORY_LABEL[c.category]);
+  const untouched = summary.byCategory
+    .filter((c) => c.totalKg === 0)
+    .map((c) => CATEGORY_LABEL[c.category]);
   const untouchedNote =
     untouched.length > 0
       ? ` Untouched areas with quick-win potential: ${untouched.join(", ")}.`

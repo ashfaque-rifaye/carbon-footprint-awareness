@@ -10,8 +10,8 @@ life and gives the next best action, ranked by impact and effort.**
 ## 1. Problem
 
 Most carbon tools are static calculators: they spit out a number, make people feel
-guilty, and get abandoned. Individuals don't know *which* of their habits matters
-most or *what to do next*. The challenge: help people **understand, track, and
+guilty, and get abandoned. Individuals don't know _which_ of their habits matters
+most or _what to do next_. The challenge: help people **understand, track, and
 reduce** their personal carbon footprint through simple actions and personalized
 insights.
 
@@ -29,16 +29,16 @@ coming back.
 
 ## 3. Why This Beats a Generic "Eco Assistant"
 
-A generic assistant says *"use public transport."* CarbonSync says:
+A generic assistant says _"use public transport."_ CarbonSync says:
 
-> *"Transport is ~90% of your savings so far. Food is your biggest untapped area —
+> _"Transport is ~90% of your savings so far. Food is your biggest untapped area —
 > swapping beef for a plant-based dinner twice this week saves ~5.2 kg CO₂, more
-> than any single energy tweak right now."*
+> than any single energy tweak right now."_
 
 The difference is **context-aware ranking**. We don't ask the model to guess: a
 deterministic analytics layer computes the real category breakdown and the
 top driver, hands it to the model as ground truth, and re-ranks the returned
-actions by **kg CO₂ saved ÷ effort** so the *single best next step* is always
+actions by **kg CO₂ saved ÷ effort** so the _single best next step_ is always
 first. That is a real assistant, not a template.
 
 ## 4. Architecture (one paragraph)
@@ -83,13 +83,13 @@ Local SQLite DB (db.ts)  ──  users · emissions_logs · sessions
 
 ### Core decision logic (pure & unit-tested)
 
-| Concern | Module · function | Rule |
-| --- | --- | --- |
-| Scoring | `carbon.calculatePoints` | 25 base + 10 per kg CO₂ |
-| Streaks | `carbon.nextStreak` | +1 consecutive day, reset after a gap |
-| Transport offset | `carbon.calculateTransitSavings` | distance × mode factor vs. ~0.22 kg/km petrol baseline |
-| Top driver | `footprint.summarizeByCategory` | aggregates ledger, ranks categories by CO₂ |
-| Next best action | `footprint.rankActionsByImpactEffort` | kg saved ÷ effort weight (Free<Low<Medium) |
+| Concern          | Module · function                     | Rule                                                   |
+| ---------------- | ------------------------------------- | ------------------------------------------------------ |
+| Scoring          | `carbon.calculatePoints`              | 25 base + 10 per kg CO₂                                |
+| Streaks          | `carbon.nextStreak`                   | +1 consecutive day, reset after a gap                  |
+| Transport offset | `carbon.calculateTransitSavings`      | distance × mode factor vs. ~0.22 kg/km petrol baseline |
+| Top driver       | `footprint.summarizeByCategory`       | aggregates ledger, ranks categories by CO₂             |
+| Next best action | `footprint.rankActionsByImpactEffort` | kg saved ÷ effort weight (Free<Low<Medium)             |
 
 ## 6. Prompt Strategy
 
@@ -101,7 +101,7 @@ Prompts are engineered, not ad-hoc (`src/lib/insights.ts`, `src/lib/chat.ts`):
   injected as "ground truth" so advice targets the user's real footprint.
 - **Few-shot** — the insights prompt embeds a one-shot JSON exemplar; the chat
   prompt embeds two Q&A exemplars to lock structure and tone.
-- **Chain-of-Thought** — the model reasons step-by-step *internally* (read
+- **Chain-of-Thought** — the model reasons step-by-step _internally_ (read
   analysis → rank by impact/effort → best step first); for the JSON endpoint the
   reasoning is kept **out** of the output to preserve strict format.
 - **Strict format + validation** — the insights endpoint must return one raw JSON
@@ -109,7 +109,7 @@ Prompts are engineered, not ad-hoc (`src/lib/insights.ts`, `src/lib/chat.ts`):
   and re-ranks before the UI sees it.
 - **Anti-hallucination** — only validated user stats are passed; the model is told
   never to invent personal data. Verified live: with the transport tracker off,
-  the coach recommended *manual* logging instead of a fake auto-feed.
+  the coach recommended _manual_ logging instead of a fake auto-feed.
 
 ## 7. Assumptions
 
@@ -150,11 +150,42 @@ npm run dev                       # full-stack dev server on http://localhost:30
 ```
 
 ```bash
-npm test       # unit tests (Vitest)
-npm run lint   # type-check (tsc --noEmit)
-npm run build  # production build (client bundle + server.cjs)
-npm start      # serve the production build
+npm test          # unit tests (Vitest)
+npm run lint      # ESLint + type-check (tsc --noEmit)
+npm run format    # auto-format with Prettier
+npm run build     # production build (client bundle + server.cjs)
+npm start         # serve the production build
 ```
+
+### Project structure
+
+```
+server.ts              Express API: auth, activity, AI proxy (owns the Gemini key)
+src/
+  App.tsx              Thin orchestrator: session state + data fetching, renders Landing/Dashboard
+  components/
+    LandingPage.tsx    Public marketing + login/register view
+    Dashboard.tsx      Authenticated dashboard shell (stat cards, tabs, panels)
+    DeviceSimulator.tsx  Simulated smart-meter + transport IoT telemetry
+    AiInsights.tsx     AI coach panel (calls /api/insights)
+    EcoAssistant.tsx   Conversational chat panel (calls /api/chat)
+    CommunityLeaderboard.tsx  Standings + social hub
+    AvatarIcon.tsx     Shared avatar→icon mapping (single source of truth)
+    Markdown.tsx       Shared safe Markdown renderer
+  lib/
+    carbon.ts          Pure scoring/streak/transit math
+    footprint.ts       Category breakdown + impact/effort ranking (the "coach" intelligence)
+    insights.ts        Insights prompt build/parse/validate + deterministic fallback
+    chat.ts            Chat prompt build + deterministic fallback
+    auth.ts            scrypt hashing + credential validation
+    db.ts              SQLite store (users, emissions_logs, sessions)
+  types.ts             Shared domain types + static challenge/milestone data
+```
+
+The codebase is enforced by **TypeScript `strict`** (with `noUnusedLocals`/
+`noUnusedParameters`), **ESLint** (typescript-eslint + react-hooks), and
+**Prettier**. UI logic lives in small components; all carbon math and AI
+prompt/parse logic is isolated in pure, unit-tested `lib/` modules.
 
 Sample API call:
 

@@ -126,7 +126,9 @@ Assistant: "A few high-impact moves:\\n\\n* **Shift heavy loads to daylight:** r
  * (role + parts). Model messages map to the "model" role; everything else to
  * "user".
  */
-export function toGeminiContents(messages: ChatMessage[]): Array<{ role: ChatRole; parts: Array<{ text: string }> }> {
+export function toGeminiContents(
+  messages: ChatMessage[]
+): Array<{ role: ChatRole; parts: Array<{ text: string }> }> {
   return messages.map((m) => ({
     role: m.role,
     parts: [{ text: m.text }],

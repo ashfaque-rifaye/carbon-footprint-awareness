@@ -64,7 +64,14 @@ describe("buildInsightsPrompt", () => {
 
   it("applies the CO-STAR framework sections", () => {
     const prompt = buildInsightsPrompt(normalizeInsightsRequest({}));
-    for (const section of ["# CONTEXT", "# OBJECTIVE", "# STYLE", "# TONE", "# AUDIENCE", "# RESPONSE FORMAT"]) {
+    for (const section of [
+      "# CONTEXT",
+      "# OBJECTIVE",
+      "# STYLE",
+      "# TONE",
+      "# AUDIENCE",
+      "# RESPONSE FORMAT",
+    ]) {
       expect(prompt).toContain(section);
     }
   });
@@ -86,8 +93,24 @@ describe("buildInsightsPrompt", () => {
     const prompt = buildInsightsPrompt(
       normalizeInsightsRequest({
         recentLogs: [
-          { logId: "1", userId: "u", category: "transport", kgSaved: 9, activityName: "drive swap", timestamp: "t", source: "manual" },
-          { logId: "2", userId: "u", category: "diet", kgSaved: 1, activityName: "veg", timestamp: "t", source: "manual" },
+          {
+            logId: "1",
+            userId: "u",
+            category: "transport",
+            kgSaved: 9,
+            activityName: "drive swap",
+            timestamp: "t",
+            source: "manual",
+          },
+          {
+            logId: "2",
+            userId: "u",
+            category: "diet",
+            kgSaved: 1,
+            activityName: "veg",
+            timestamp: "t",
+            source: "manual",
+          },
         ],
       })
     );
@@ -173,7 +196,11 @@ describe("fallbackInsights", () => {
   });
 
   it("guides the user to connect devices when they are off", () => {
-    const result = fallbackInsights({ name: "Sam", smartMeterConnected: false, transportTrackerConnected: false });
+    const result = fallbackInsights({
+      name: "Sam",
+      smartMeterConnected: false,
+      transportTrackerConnected: false,
+    });
     expect(result.insights).toContain("Connect your");
   });
 });

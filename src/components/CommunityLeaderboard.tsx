@@ -1,5 +1,18 @@
 import { useState } from "react";
-import { Users, Award, Share2, Sparkles, MessageSquare, Heart, Check, Copy, Trophy, Flame, Leaf, ThumbsUp } from "lucide-react";
+import {
+  Users,
+  Award,
+  Share2,
+  Sparkles,
+  MessageSquare,
+  Heart,
+  Check,
+  Copy,
+  Trophy,
+  Flame,
+  Leaf,
+  ThumbsUp,
+} from "lucide-react";
 import { LeaderboardEntry, UserProfile } from "../types";
 import AvatarIcon from "./AvatarIcon";
 
@@ -19,9 +32,30 @@ export default function CommunityLeaderboard({
   const [activeTab, setActiveTab] = useState<"leaderboard" | "share">("leaderboard");
   const [sharingPlatform, setSharingPlatform] = useState<string>("");
   const [copied, setCopied] = useState<boolean>(false);
-  const [socialFeed, setSocialFeed] = useState<Array<{ id: string; user: string; text: string; likes: number; savedRaw: number; liked?: boolean }>>([
-    { id: "feed_1", user: "Beatrix ClimateHero", text: "Just completed a 1-day eco shift using Transit Tracker! Saved over 12.5 kg of CO2 equivalent in my daily commute today!", likes: 24, savedRaw: 12.5 },
-    { id: "feed_2", user: "Clara Greenleaf", text: "My Smart Utility Meter logged a peak solar grid offset of 3.2kWh today! Passively contributing to the neighborhood grid!", likes: 18, savedRaw: 3.2 },
+  const [socialFeed, setSocialFeed] = useState<
+    Array<{
+      id: string;
+      user: string;
+      text: string;
+      likes: number;
+      savedRaw: number;
+      liked?: boolean;
+    }>
+  >([
+    {
+      id: "feed_1",
+      user: "Beatrix ClimateHero",
+      text: "Just completed a 1-day eco shift using Transit Tracker! Saved over 12.5 kg of CO2 equivalent in my daily commute today!",
+      likes: 24,
+      savedRaw: 12.5,
+    },
+    {
+      id: "feed_2",
+      user: "Clara Greenleaf",
+      text: "My Smart Utility Meter logged a peak solar grid offset of 3.2kWh today! Passively contributing to the neighborhood grid!",
+      likes: 18,
+      savedRaw: 3.2,
+    },
   ]);
   const [customPost, setCustomPost] = useState<string>("");
 
@@ -40,7 +74,7 @@ Total Carbon Offset Saved: ${userProfile.totalSavedKg.toFixed(1)} kg CO2
 Gamified Level Score: ${userProfile.points} Points
 Active Eco Streak: ${userProfile.streakDays} Days!
 Join me to reduce our emissions! @CarbonSync`;
-    
+
     navigator.clipboard.writeText(shareMessage);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -127,13 +161,21 @@ Join me to reduce our emissions! @CarbonSync`;
                 const renderRankBadge = (rankIdx: number) => {
                   switch (rankIdx) {
                     case 0:
-                      return <Trophy className="w-4 h-4 text-amber-400 mx-auto" aria-label="1st place" />;
+                      return (
+                        <Trophy className="w-4 h-4 text-amber-400 mx-auto" aria-label="1st place" />
+                      );
                     case 1:
-                      return <Trophy className="w-4 h-4 text-slate-300 mx-auto" aria-label="2nd place" />;
+                      return (
+                        <Trophy className="w-4 h-4 text-slate-300 mx-auto" aria-label="2nd place" />
+                      );
                     case 2:
-                      return <Trophy className="w-4 h-4 text-amber-600 mx-auto" aria-label="3rd place" />;
+                      return (
+                        <Trophy className="w-4 h-4 text-amber-600 mx-auto" aria-label="3rd place" />
+                      );
                     default:
-                      return <span className="font-mono text-xs text-slate-400">#{rankIdx + 1}</span>;
+                      return (
+                        <span className="font-mono text-xs text-slate-400">#{rankIdx + 1}</span>
+                      );
                   }
                 };
 
@@ -141,8 +183,8 @@ Join me to reduce our emissions! @CarbonSync`;
                   <div
                     key={player.userId}
                     className={`flex items-center justify-between p-3 rounded-xl border transition-all ${
-                      isMe 
-                        ? "border-emerald-500/30 bg-emerald-500/10 shadow-lg shadow-emerald-500/5" 
+                      isMe
+                        ? "border-emerald-500/30 bg-emerald-500/10 shadow-lg shadow-emerald-500/5"
                         : "border-white/5 bg-white/5 hover:bg-white/10"
                     }`}
                   >
@@ -158,7 +200,9 @@ Join me to reduce our emissions! @CarbonSync`;
                           <AvatarIcon avatar={player.avatar} />
                         </span>
                         <div>
-                          <span className={`text-sm font-medium ${isMe ? "text-emerald-300 font-bold" : "text-white"}`}>
+                          <span
+                            className={`text-sm font-medium ${isMe ? "text-emerald-300 font-bold" : "text-white"}`}
+                          >
                             {player.name} {isMe && "(You)"}
                           </span>
                         </div>
@@ -166,9 +210,14 @@ Join me to reduce our emissions! @CarbonSync`;
                     </div>
 
                     <div className="flex items-center gap-8 font-mono text-sm font-bold">
-                      <span className="text-blue-300">{player.totalSavedKg.toFixed(1)} <span className="text-[10px] text-slate-400">kg</span></span>
-                      <span className="text-amber-400 w-16 text-right">+{player.points} <span className="text-[10px] text-slate-400">XP</span></span>
-                      
+                      <span className="text-blue-300">
+                        {player.totalSavedKg.toFixed(1)}{" "}
+                        <span className="text-[10px] text-slate-400">kg</span>
+                      </span>
+                      <span className="text-amber-400 w-16 text-right">
+                        +{player.points} <span className="text-[10px] text-slate-400">XP</span>
+                      </span>
+
                       {/* Cheer action for community engagement */}
                       {!isMe && (
                         <button
@@ -188,7 +237,10 @@ Join me to reduce our emissions! @CarbonSync`;
 
             <div className="flex items-center gap-2 text-[10px] text-slate-400 pt-2 border-t border-white/10">
               <Award className="w-4 h-4 text-amber-400 flex-shrink-0" />
-              <span>Leaderboard standings update from the local activity ledger. Track savings daily to climb your division rank!</span>
+              <span>
+                Leaderboard standings update from the local activity ledger. Track savings daily to
+                climb your division rank!
+              </span>
             </div>
           </div>
         ) : (
@@ -197,7 +249,7 @@ Join me to reduce our emissions! @CarbonSync`;
             {userProfile && (
               <div className="relative border border-white/10 bg-white/5 rounded-2xl p-4 overflow-hidden shadow-inner">
                 <div className="absolute top-0 right-0 w-16 h-16 bg-emerald-500/15 rounded-full blur-2xl pointer-events-none"></div>
-                
+
                 {/* Meta details */}
                 <div className="flex justify-between items-start mb-3">
                   <div className="flex items-center gap-2">
@@ -205,7 +257,9 @@ Join me to reduce our emissions! @CarbonSync`;
                       <Sparkles className="w-4 h-4" />
                     </span>
                     <div>
-                      <h4 className="text-xs font-display font-medium text-slate-300">Carbon Savings Passport</h4>
+                      <h4 className="text-xs font-display font-medium text-slate-300">
+                        Carbon Savings Passport
+                      </h4>
                       <p className="text-[10px] text-slate-400">Your shareable impact card</p>
                     </div>
                   </div>
@@ -219,17 +273,22 @@ Join me to reduce our emissions! @CarbonSync`;
                   <div className="flex justify-center mb-2">
                     <Leaf className="w-8 h-8 text-emerald-400 animate-pulse" />
                   </div>
-                  <p className="text-xs text-emerald-300 font-medium font-mono">CARBON OFFSET OFFICIALLY LOGGED</p>
-                  <p className="text-3xl font-display font-extrabold text-emerald-300 tracking-tight my-1.5">
-                    {userProfile.totalSavedKg.toFixed(1)} <span className="text-sm font-sans text-slate-300">kg CO₂ Saved</span>
+                  <p className="text-xs text-emerald-300 font-medium font-mono">
+                    CARBON OFFSET OFFICIALLY LOGGED
                   </p>
-                  
+                  <p className="text-3xl font-display font-extrabold text-emerald-300 tracking-tight my-1.5">
+                    {userProfile.totalSavedKg.toFixed(1)}{" "}
+                    <span className="text-sm font-sans text-slate-300">kg CO₂ Saved</span>
+                  </p>
+
                   {/* Minimal statistics row */}
                   <div className="grid grid-cols-2 mt-4 pt-3 border-t border-white/10 text-left">
                     <div className="border-r border-white/10 pr-2 flex items-center gap-1">
                       <Flame className="w-4 h-4 text-amber-500 shrink-0" />
                       <div>
-                        <span className="text-[9px] block text-slate-400 uppercase font-mono">Streak Power</span>
+                        <span className="text-[9px] block text-slate-400 uppercase font-mono">
+                          Streak Power
+                        </span>
                         <span className="text-sm font-bold text-amber-400 font-mono">
                           {userProfile.streakDays} Days active
                         </span>
@@ -238,7 +297,9 @@ Join me to reduce our emissions! @CarbonSync`;
                     <div className="pl-3 flex items-center gap-1">
                       <Trophy className="w-4 h-4 text-amber-400 shrink-0" />
                       <div>
-                        <span className="text-[9px] block text-slate-400 uppercase font-mono">Points Bounty</span>
+                        <span className="text-[9px] block text-slate-400 uppercase font-mono">
+                          Points Bounty
+                        </span>
                         <span className="text-sm font-bold text-slate-100 font-mono">
                           {userProfile.points} XP Gained
                         </span>
@@ -282,8 +343,10 @@ Join me to reduce our emissions! @CarbonSync`;
 
             {/* Simulated Community Social Posting stream */}
             <div className="space-y-3.5 pt-2 border-t border-white/10">
-              <span className="text-xs font-bold text-white flex items-center gap-1.5"><Sparkles className="w-3.5 h-3.5 text-amber-400" /> Active Community Log Feed</span>
-              
+              <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-amber-400" /> Active Community Log Feed
+              </span>
+
               {/* Creator entry */}
               <div className="flex gap-2">
                 <input
@@ -305,22 +368,37 @@ Join me to reduce our emissions! @CarbonSync`;
               {/* Live social entries list */}
               <div className="space-y-2.5 max-h-[180px] overflow-y-auto pr-1">
                 {socialFeed.map((post) => (
-                  <div key={post.id} className="bg-white/5 border border-white/10 rounded-xl p-3 text-xs">
+                  <div
+                    key={post.id}
+                    className="bg-white/5 border border-white/10 rounded-xl p-3 text-xs"
+                  >
                     <div className="flex justify-between items-center mb-1.5">
                       <span className="font-bold text-emerald-300">{post.user}</span>
-                      <span className="text-[10px] text-slate-400 font-mono">✨ savings: {post.savedRaw.toFixed(1)} kg</span>
+                      <span className="text-[10px] text-slate-400 font-mono">
+                        ✨ savings: {post.savedRaw.toFixed(1)} kg
+                      </span>
                     </div>
                     <p className="text-slate-200 leading-relaxed">{post.text}</p>
                     <div className="mt-2.5 flex items-center gap-4 text-[10px] text-slate-400">
                       <button
                         onClick={() => handleLikePost(post.id)}
                         className={`flex items-center gap-1 hover:text-red-400 transition-all cursor-pointer ${post.liked ? "text-red-400 font-medium" : ""}`}
-                        aria-label={post.liked ? `Remove your cheer from ${post.user}'s post` : `Cheer ${post.user}'s post`}
+                        aria-label={
+                          post.liked
+                            ? `Remove your cheer from ${post.user}'s post`
+                            : `Cheer ${post.user}'s post`
+                        }
                         aria-pressed={post.liked}
                       >
-                        <Heart className={`w-3.5 h-3.5 ${post.liked ? "fill-red-400 shrink-0 text-red-400" : "shrink-0"}`} aria-hidden="true" /> {post.likes} Cheers
+                        <Heart
+                          className={`w-3.5 h-3.5 ${post.liked ? "fill-red-400 shrink-0 text-red-400" : "shrink-0"}`}
+                          aria-hidden="true"
+                        />{" "}
+                        {post.likes} Cheers
                       </button>
-                      <span className="flex items-center gap-1"><MessageSquare className="w-3.5 h-3.5 shrink-0" /> Reply</span>
+                      <span className="flex items-center gap-1">
+                        <MessageSquare className="w-3.5 h-3.5 shrink-0" /> Reply
+                      </span>
                     </div>
                   </div>
                 ))}

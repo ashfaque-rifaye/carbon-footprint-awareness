@@ -61,17 +61,25 @@ describe("email validation", () => {
 
 describe("validateRegistration", () => {
   it("accepts a valid payload and normalizes email to lowercase", () => {
-    const r = validateRegistration({ name: " Maya ", email: "Maya@Example.com", password: "greenpass123" });
+    const r = validateRegistration({
+      name: " Maya ",
+      email: "Maya@Example.com",
+      password: "greenpass123",
+    });
     expect(r.ok).toBe(true);
     expect(r.value).toEqual({ name: "Maya", email: "maya@example.com", password: "greenpass123" });
   });
 
   it("requires a name", () => {
-    expect(validateRegistration({ name: "", email: "a@b.com", password: "greenpass123" }).ok).toBe(false);
+    expect(validateRegistration({ name: "", email: "a@b.com", password: "greenpass123" }).ok).toBe(
+      false
+    );
   });
 
   it("requires a valid email", () => {
-    expect(validateRegistration({ name: "X", email: "bad", password: "greenpass123" }).ok).toBe(false);
+    expect(validateRegistration({ name: "X", email: "bad", password: "greenpass123" }).ok).toBe(
+      false
+    );
   });
 
   it(`requires a password of at least ${MIN_PASSWORD_LEN} characters`, () => {

@@ -120,7 +120,9 @@ export function resolveStreakOnLogin(
   today: string = toDateKey()
 ): number {
   if (!lastActiveDate) return Math.max(1, storedStreak);
-  const diffDays = Math.ceil((new Date(today).getTime() - new Date(lastActiveDate).getTime()) / ONE_DAY_MS);
+  const diffDays = Math.ceil(
+    (new Date(today).getTime() - new Date(lastActiveDate).getTime()) / ONE_DAY_MS
+  );
   return diffDays > 1 ? 1 : Math.max(1, storedStreak);
 }
 

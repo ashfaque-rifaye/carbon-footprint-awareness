@@ -74,8 +74,12 @@ describe("createStore (in-memory)", () => {
   it("inserts and lists logs newest-first, scoped to the user", () => {
     const user = makeUser(store);
     const other = makeUser(store, "other@example.com");
-    store.insertLog(makeLog(user.id, { timestamp: "2026-06-17T10:00:00.000Z", activityName: "Old" }));
-    store.insertLog(makeLog(user.id, { timestamp: "2026-06-19T10:00:00.000Z", activityName: "New" }));
+    store.insertLog(
+      makeLog(user.id, { timestamp: "2026-06-17T10:00:00.000Z", activityName: "Old" })
+    );
+    store.insertLog(
+      makeLog(user.id, { timestamp: "2026-06-19T10:00:00.000Z", activityName: "New" })
+    );
     store.insertLog(makeLog(other.id, { activityName: "Not mine" }));
 
     const logs = store.listLogs(user.id);
@@ -95,7 +99,12 @@ describe("createStore (in-memory)", () => {
 
   it("updates aggregate stats", () => {
     const user = makeUser(store);
-    store.updateStats(user.id, { points: 120, totalSavedKg: 8.8, streakDays: 3, lastActiveDate: "2026-06-20" });
+    store.updateStats(user.id, {
+      points: 120,
+      totalSavedKg: 8.8,
+      streakDays: 3,
+      lastActiveDate: "2026-06-20",
+    });
     const updated = store.getUserById(user.id)!;
     expect(updated.points).toBe(120);
     expect(updated.total_saved_kg).toBe(8.8);
@@ -115,8 +124,18 @@ describe("createStore (in-memory)", () => {
   it("ranks the leaderboard by points descending", () => {
     const a = makeUser(store, "a@example.com");
     const b = makeUser(store, "b@example.com");
-    store.updateStats(a.id, { points: 50, totalSavedKg: 5, streakDays: 1, lastActiveDate: "2026-06-19" });
-    store.updateStats(b.id, { points: 300, totalSavedKg: 20, streakDays: 1, lastActiveDate: "2026-06-19" });
+    store.updateStats(a.id, {
+      points: 50,
+      totalSavedKg: 5,
+      streakDays: 1,
+      lastActiveDate: "2026-06-19",
+    });
+    store.updateStats(b.id, {
+      points: 300,
+      totalSavedKg: 20,
+      streakDays: 1,
+      lastActiveDate: "2026-06-19",
+    });
     const board = store.topLeaderboard(10);
     expect(board[0].userId).toBe(b.id);
     expect(board[1].userId).toBe(a.id);

@@ -115,8 +115,18 @@ export function buildInsightsPrompt(ctx: NormalizedInsightsContext): string {
     insights:
       "### You're on fire, Alex! 🔥\\n\\nYour **3-day streak** and 12.4 kg saved already put you ahead of most newcomers. Here are three tailored hacks:\\n\\n* **Solar Laundry:** Your smart meter is live — run washes at midday to bank free clean-grid offsets.\\n* **Active Commute:** Swap two car trips for cycling to climb past 'Arthur WindPower' on the leaderboard.\\n* **Plant-Forward Lunch:** One meatless lunch a day saves ~1.5 kg CO₂ weekly.",
     actions: [
-      { id: "solar_laundry", text: "Run laundry during midday solar peak (11 AM–2 PM)", savedKg: 1.2, cost: "Free" },
-      { id: "cycle_commute", text: "Cycle two short commutes this week", savedKg: 4.4, cost: "Free" },
+      {
+        id: "solar_laundry",
+        text: "Run laundry during midday solar peak (11 AM–2 PM)",
+        savedKg: 1.2,
+        cost: "Free",
+      },
+      {
+        id: "cycle_commute",
+        text: "Cycle two short commutes this week",
+        savedKg: 4.4,
+        cost: "Free",
+      },
       { id: "meatless_lunch", text: "Have one plant-based lunch daily", savedKg: 1.5, cost: "Low" },
     ],
   };
@@ -182,8 +192,7 @@ function coerceAction(value: unknown, index: number): SuggestedAction | null {
   const a = value as Record<string, unknown>;
   const text = safeText(a.text, "", 200);
   if (!text) return null;
-  const cost: ActionCost =
-    a.cost === "Low" || a.cost === "Medium" ? a.cost : "Free";
+  const cost: ActionCost = a.cost === "Low" || a.cost === "Medium" ? a.cost : "Free";
   return {
     id: safeText(a.id, `action_${index}`, 60),
     text,
@@ -201,7 +210,11 @@ function coerceAction(value: unknown, index: number): SuggestedAction | null {
  */
 export function parseInsightsResponse(text: string | undefined | null): InsightsResult | null {
   if (!text) return null;
-  const cleaned = text.trim().replace(/^```(?:json)?/i, "").replace(/```$/i, "").trim();
+  const cleaned = text
+    .trim()
+    .replace(/^```(?:json)?/i, "")
+    .replace(/```$/i, "")
+    .trim();
   let parsed: unknown;
   try {
     parsed = JSON.parse(cleaned);
@@ -254,9 +267,24 @@ export function fallbackInsights(profile?: InsightsContextProfile): InsightsResu
       `* **Diet:** Adopting "Meatless Mondays" can save roughly 3.5 kg CO₂ each week and climb you up the leaderboard.`,
     ].join("\n\n"),
     actions: [
-      { id: "fallback_peak_energy", text: "Run laundry during peak solar hours (10 AM–2 PM)", savedKg: 1.2, cost: "Free" },
-      { id: "fallback_active_transit", text: "Replace one short car trip with a walk or cycle", savedKg: 3.4, cost: "Free" },
-      { id: "fallback_plant_meal", text: "Plan one plant-based dinner this week", savedKg: 2.2, cost: "Low" },
+      {
+        id: "fallback_peak_energy",
+        text: "Run laundry during peak solar hours (10 AM–2 PM)",
+        savedKg: 1.2,
+        cost: "Free",
+      },
+      {
+        id: "fallback_active_transit",
+        text: "Replace one short car trip with a walk or cycle",
+        savedKg: 3.4,
+        cost: "Free",
+      },
+      {
+        id: "fallback_plant_meal",
+        text: "Plan one plant-based dinner this week",
+        savedKg: 2.2,
+        cost: "Low",
+      },
     ],
   };
 }

@@ -48,7 +48,10 @@ describe("summarizeByCategory", () => {
   });
 
   it("ignores invalid or negative kg values", () => {
-    const s = summarizeByCategory([log("transport", -5), log("transport", NaN as unknown as number)]);
+    const s = summarizeByCategory([
+      log("transport", -5),
+      log("transport", NaN as unknown as number),
+    ]);
     expect(s.totalKg).toBe(0);
   });
 });

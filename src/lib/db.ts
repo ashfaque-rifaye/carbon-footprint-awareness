@@ -171,9 +171,7 @@ export function createStore(dbPath: string) {
     updateStreak: db.prepare(
       `UPDATE users SET streak_days = @streak_days, last_active_date = @last_active_date WHERE id = @id`
     ),
-    insertSession: db.prepare(
-      `INSERT INTO sessions (token, user_id, created_at) VALUES (?, ?, ?)`
-    ),
+    insertSession: db.prepare(`INSERT INTO sessions (token, user_id, created_at) VALUES (?, ?, ?)`),
     userBySession: db.prepare(
       `SELECT u.* FROM users u JOIN sessions s ON s.user_id = u.id WHERE s.token = ?`
     ),
@@ -182,9 +180,7 @@ export function createStore(dbPath: string) {
       `INSERT INTO emissions_logs (log_id, user_id, category, kg_saved, activity_name, timestamp, source)
        VALUES (@log_id, @user_id, @category, @kg_saved, @activity_name, @timestamp, @source)`
     ),
-    listLogs: db.prepare(
-      `SELECT * FROM emissions_logs WHERE user_id = ? ORDER BY timestamp DESC`
-    ),
+    listLogs: db.prepare(`SELECT * FROM emissions_logs WHERE user_id = ? ORDER BY timestamp DESC`),
     deleteLog: db.prepare(`DELETE FROM emissions_logs WHERE user_id = ? AND log_id = ?`),
     topUsers: db.prepare(
       `SELECT id, name, points, total_saved_kg, avatar FROM users ORDER BY points DESC, total_saved_kg DESC LIMIT ?`
