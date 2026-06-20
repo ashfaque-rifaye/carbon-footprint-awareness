@@ -22,11 +22,6 @@ export interface ChatContextProfile {
   transportTrackerConnected?: boolean;
 }
 
-export interface ChatRequest {
-  messages?: unknown;
-  userProfile?: ChatContextProfile;
-}
-
 /** Maximum number of prior turns forwarded to the model (bounds token usage). */
 export const MAX_CHAT_HISTORY = 12;
 
