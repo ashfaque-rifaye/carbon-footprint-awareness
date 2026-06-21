@@ -1,6 +1,12 @@
 /** Low-carbon transit modes supported by the transport tracker simulator. */
 export type TransitMode = "walk" | "electric_scooter" | "bike" | "train" | "ev";
 
+/** The four footprint categories tracked across the app. */
+export type ActivityCategory = "transport" | "energy" | "diet" | "waste";
+
+/** Where a logged activity originated. */
+export type LogSource = "manual" | "smart_meter" | "transport_tracker";
+
 export interface UserProfile {
   userId: string;
   name: string;
