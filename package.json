@@ -2,8 +2,27 @@
   "name": "carbonsync",
   "private": true,
   "version": "1.0.0",
+  "description": "AI-powered personal carbon coach — track your footprint and get impact-ranked next actions from a Gemini coach. PromptWars Challenge 3.",
   "license": "MIT",
+  "author": "Ashfaque Rifaye",
   "type": "module",
+  "keywords": [
+    "carbon-footprint",
+    "sustainability",
+    "gemini",
+    "ai-coach",
+    "react",
+    "typescript",
+    "express"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ashfaque-rifaye/carbon-footprint-awareness.git"
+  },
+  "homepage": "https://github.com/ashfaque-rifaye/carbon-footprint-awareness#readme",
+  "bugs": {
+    "url": "https://github.com/ashfaque-rifaye/carbon-footprint-awareness/issues"
+  },
   "engines": {
     "node": ">=18"
   },
