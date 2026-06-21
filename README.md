@@ -127,7 +127,8 @@ Prompts are engineered, not ad-hoc (`src/lib/insights.ts`, `src/lib/chat.ts`):
 
 ## 8. Testing
 
-`npm test` runs **97 unit tests** (Vitest) over the decision, auth, and data logic:
+`npm test` runs **108 tests** (Vitest) across the decision, auth, data, security, and
+UI layers — and CI re-runs them on every push:
 
 - `carbon.test.ts` — scoring, streaks, offsets, equivalence, edge cases.
 - `footprint.test.ts` — category aggregation, top-driver detection, impact/effort
@@ -138,6 +139,11 @@ Prompts are engineered, not ad-hoc (`src/lib/insights.ts`, `src/lib/chat.ts`):
   keyword fallback.
 - `auth.test.ts` — scrypt hash/verify (incl. constant-time + garbage inputs),
   email validation, registration/login payload validation.
+- `rateLimit.test.ts` — fixed-window limiter: limit enforcement, per-key isolation,
+  window expiry.
+- `Markdown.test.tsx` / `AvatarIcon.test.tsx` — component render tests (jsdom +
+  Testing Library): heading/list/bold rendering, injection-safety, avatar mapping,
+  decorative `aria-hidden`.
 - `db.test.ts` — runs against an in-memory SQLite DB: user creation, duplicate-email
   rejection, session lifecycle, owner-scoped log CRUD, stats/profile updates,
   leaderboard ranking, and row→DTO mapping (no secret leakage).
@@ -182,6 +188,7 @@ src/
     chat.ts            Chat prompt build + deterministic fallback
     auth.ts            scrypt hashing + credential validation
     db.ts              SQLite store (users, emissions_logs, sessions)
+    rateLimit.ts       In-process fixed-window rate limiter (auth abuse protection)
   types.ts             Shared domain types + static challenge/milestone data
 ```
 
@@ -207,12 +214,15 @@ curl -s localhost:3000/api/insights -H "Content-Type: application/json" -d '{
   bodies are size-limited and every field validated before use; passwords are
   hashed with scrypt (never stored or logged in plaintext) and compared in
   constant time; auth uses an httpOnly, SameSite=Lax, `Secure`-in-production
-  session cookie; every data endpoint is session-guarded and all queries are
-  owner-scoped with parameterized SQL (no injection); model output is parsed
-  defensively and never executed.
+  session cookie; the public auth endpoints are **rate-limited per IP**; baseline
+  **HTTP security headers** are set (`X-Content-Type-Options`, `X-Frame-Options`,
+  `Referrer-Policy`, `Permissions-Policy`); every data endpoint is session-guarded
+  and all queries are owner-scoped with parameterized SQL (no injection); model
+  output is parsed defensively and never executed.
 - **Accessibility:** skip link, semantic landmarks, real `<button>`s for every
   action (no click-handlers on `div`s), `aria-label`s on icon buttons,
-  `aria-pressed` on toggles, `role="tab"`/`aria-selected` navigation, `aria-live`
+  `aria-pressed` on toggles, a full WAI-ARIA **tabs pattern**
+  (`tablist`/`tab`/`tabpanel` with `aria-controls`/`aria-labelledby`), `aria-live`
   status regions, labeled inputs, visible focus rings, and a
   `prefers-reduced-motion` block that disables animation for users who opt out.
   (Full WCAG sign-off needs manual assistive-tech testing.)

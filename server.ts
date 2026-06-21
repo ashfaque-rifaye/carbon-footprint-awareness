@@ -31,6 +31,7 @@ import {
   resolveStreakOnLogin,
   toDateKey,
 } from "./src/lib/carbon";
+import { createRateLimiter } from "./src/lib/rateLimit";
 import type { EmissionsLog } from "./src/types";
 
 // Load environment variables. `.env.local` (gitignored, holds secrets) takes
@@ -118,6 +119,16 @@ function parseCookies(header: string | undefined): Record<string, string> {
   return out;
 }
 
+// Throttle the public auth endpoints against brute-force / spam (per client IP).
+const authLimiter = createRateLimiter({ windowMs: 60_000, max: 20 });
+
+// Best-effort client IP behind Cloud Run's proxy.
+function clientIp(req: express.Request): string {
+  const fwd = req.headers["x-forwarded-for"];
+  if (typeof fwd === "string" && fwd.length > 0) return fwd.split(",")[0].trim();
+  return req.socket.remoteAddress || "unknown";
+}
+
 // Resolve the authenticated user from the session cookie, or undefined.
 function getSessionUser(req: express.Request): UserRow | undefined {
   const token = parseCookies(req.headers.cookie)[SESSION_COOKIE];
@@ -138,8 +149,26 @@ async function startServer() {
   const app = express();
   const PORT = Number(process.env.PORT) || 3000;
 
+  // Baseline HTTP security headers (dependency-free; safe for this SPA).
+  app.use((_req, res, next) => {
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("X-Frame-Options", "DENY");
+    res.setHeader("Referrer-Policy", "no-referrer");
+    res.setHeader("X-DNS-Prefetch-Control", "off");
+    res.setHeader("Permissions-Policy", "geolocation=(), microphone=(), camera=()");
+    next();
+  });
+
   // Bound request body size to limit abuse of the public endpoint.
   app.use(express.json({ limit: "64kb" }));
+
+  // Rate-limit the unauthenticated auth endpoints.
+  app.use(["/api/auth/login", "/api/auth/register"], (req, res, next) => {
+    if (!authLimiter.check(clientIp(req))) {
+      return res.status(429).json({ error: "Too many attempts. Please try again in a minute." });
+    }
+    return next();
+  });
 
   // Lightweight health check for container/orchestration probes.
   app.get("/api/health", (_req, res) => {

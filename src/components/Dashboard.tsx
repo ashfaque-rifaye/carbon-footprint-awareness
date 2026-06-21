@@ -231,9 +231,11 @@ export default function Dashboard({
               key={tab.id}
               type="button"
               role="tab"
+              id={`tab-${tab.id}`}
               aria-selected={activeTab === tab.id}
+              aria-controls={`panel-${tab.id}`}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 min-w-[140px] py-3 px-4 rounded-xl font-display font-extrabold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer ${
+              className={`flex-1 min-w-[140px] py-3 px-4 rounded-xl font-display font-extrabold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60 ${
                 activeTab === tab.id
                   ? `bg-slate-800 border shadow-md font-black ${tab.active}`
                   : "text-slate-400 hover:text-slate-200 hover:bg-white/5"
@@ -272,7 +274,12 @@ export default function Dashboard({
 
       {/* ECO TRACKER TAB */}
       {activeTab === "dashboard" && (
-        <div className="space-y-8 animate-fadeIn">
+        <div
+          role="tabpanel"
+          id="panel-dashboard"
+          aria-labelledby="tab-dashboard"
+          className="space-y-8 animate-fadeIn"
+        >
           <DeviceSimulator
             onLogEmission={onLogActivity}
             smartConnected={profile.smartMeterConnected}
@@ -464,7 +471,12 @@ export default function Dashboard({
 
       {/* AUDIT LEDGER TAB */}
       {activeTab === "ledger" && (
-        <div className="space-y-6 animate-fadeIn max-w-4xl mx-auto text-left">
+        <div
+          role="tabpanel"
+          id="panel-ledger"
+          aria-labelledby="tab-ledger"
+          className="space-y-6 animate-fadeIn max-w-4xl mx-auto text-left"
+        >
           <div className="glass rounded-2xl p-6 border border-white/5">
             <div className="flex flex-col sm:flex-row justify-between sm:items-center pb-4 border-b border-white/5 mb-6 gap-3">
               <div>
@@ -542,7 +554,12 @@ export default function Dashboard({
 
       {/* SMART AI COACH TAB */}
       {activeTab === "insights" && (
-        <div className="space-y-6 animate-fadeIn max-w-4xl mx-auto text-left col-span-1">
+        <div
+          role="tabpanel"
+          id="panel-insights"
+          aria-labelledby="tab-insights"
+          className="space-y-6 animate-fadeIn max-w-4xl mx-auto text-left col-span-1"
+        >
           <div className="glass rounded-2xl p-6 border border-white/5 relative overflow-hidden">
             <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/5 rounded-full blur-3xl pointer-events-none"></div>
 
@@ -573,7 +590,12 @@ export default function Dashboard({
 
       {/* ECO ASSISTANT CHAT TAB */}
       {activeTab === "assistant" && (
-        <div className="space-y-6 animate-fadeIn max-w-4xl mx-auto text-left">
+        <div
+          role="tabpanel"
+          id="panel-assistant"
+          aria-labelledby="tab-assistant"
+          className="space-y-6 animate-fadeIn max-w-4xl mx-auto text-left"
+        >
           <div className="text-center max-w-2xl mx-auto space-y-2 mb-2">
             <h3 className="font-display font-extrabold text-xl text-white tracking-tight flex items-center justify-center gap-2">
               <Bot className="w-5 h-5 text-emerald-400" /> Your Personal Eco Assistant
@@ -589,7 +611,12 @@ export default function Dashboard({
 
       {/* LEADERBOARD STANDINGS TAB */}
       {activeTab === "leaderboard" && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-fadeIn max-w-5xl mx-auto text-left">
+        <div
+          role="tabpanel"
+          id="panel-leaderboard"
+          aria-labelledby="tab-leaderboard"
+          className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-fadeIn max-w-5xl mx-auto text-left"
+        >
           <div className="space-y-4">
             <CommunityLeaderboard
               currentUserId={profile.userId}
